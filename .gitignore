@@ -1,0 +1,68 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+dist/
+build/
+.svelte-kit
+.next
+.nuxt
+
+# Python environment
+venv/
+.venv/
+env/
+.env/
+__pycache__/
+*.py[cod]
+*$py.class
+.ipynb_checkpoints/
+.pytest_cache/
+.mypy_cache/
+
+# Large Datasets & Local Media (Exclude raw data from version control)
+datasets/*
+!datasets/.gitkeep
+# If datasets contains specific untracked datasets:
+datasets/BreaKHis 400X/
+datasets/lungs/
+
+# Model Checkpoints and weights
+models/checkpoints/*
+models/saved_models/*
+!models/.gitkeep
+*.h5
+*.keras
+*.pb
+*.pt
+*.pth
+*.onnx
+
+# User uploads and run outputs
+uploads/*
+!uploads/.gitkeep
+results/*
+!results/.gitkeep
+reports/*
+!reports/.gitkeep
+*.log
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Large zip/archive files
+*.zip
+*.tar.gz
+*.rar
+
+# Temp uploads
+temp_uploads/
+
+# Test files
+test.txt

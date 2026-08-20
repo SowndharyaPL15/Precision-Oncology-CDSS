@@ -1,0 +1,39 @@
+{
+  "datasets": {
+    "lung": {
+      "best_model": "DenseNet121",
+      "models": {
+        "DenseNet121": {
+          "accuracy": 0.983,
+          "precision": 0.984,
+          "recall": 0.983,
+          "f1_score": 0.984,
+          "roc_auc": 0.998,
+          "mcc": 0.975,
+          "specificity": 0.99,
+          "inference_time_ms_per_image": 18.5
+        },
+        "EfficientNetB0": {
+          "accuracy": 0.961,
+          "precision": 0.962,
+          "recall": 0.961,
+          "f1_score": 0.963,
+          "roc_auc": 0.99,
+          "mcc": 0.941,
+          "specificity": 0.978,
+          "inference_time_ms_per_image": 14.2
+        },
+        "ResNet50": {
+          "accuracy": 0.94,
+          "precision": 0.941,
+          "recall": 0.94,
+          "f1_score": 0.939,
+          "roc_auc": 0.98,
+          "mcc": 0.91,
+          "specificity": 0.969,
+          "inference_time_ms_per_image": 22.1
+        }
+      }
+    }
+  }
+}
