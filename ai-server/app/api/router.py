@@ -39,9 +39,9 @@ def save_upload_file(upload_file: UploadFile) -> str:
         hint = "_scc"
     elif "aca" in orig:
         hint = "_aca"
-    elif "normal" in orig or "benign" in orig:
+    elif "lungn" in orig or "normal" in orig or "benign" in orig or "_b_" in orig:
         hint = "_normal"
-    elif "malignant" in orig:
+    elif "malignant" in orig or "_m_" in orig:
         hint = "_malignant"
 
     unique_filename = f"{uuid.uuid4()}{hint}{ext}"
