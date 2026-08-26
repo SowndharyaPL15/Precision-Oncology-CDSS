@@ -1,8 +1,8 @@
 import axios from 'axios';
 
-// Update to match backend API URL when it's running
-export const API_BASE_URL = 'http://127.0.0.1:8005/api/v1';
-export const BACKEND_URL = 'http://127.0.0.1:8005';
+// Update to match backend API URL when it's running, supporting Vite env variables in production
+export const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8005';
+export const API_BASE_URL = `${BACKEND_URL}/api/v1`;
 
 export const getMediaUrl = (path: string | null | undefined): string => {
   if (!path) return '';
