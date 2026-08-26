@@ -38,5 +38,17 @@ if settings.DATABASE_URL.startswith("postgres://"):
 elif settings.DATABASE_URL.startswith("postgresql://") and not settings.DATABASE_URL.startswith("postgresql+asyncpg://"):
     settings.DATABASE_URL = settings.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
 
+# Remove incompatible query parameters for asyncpg (like sslmode and channel_binding)
+if "?" in settings.DATABASE_URL:
+    base_part, query_part = settings.DATABASE_URL.split("?", 1)
+    clean_params = [
+        p for p in query_part.split("&") 
+        if not p.startswith("sslmode=") and not p.startswith("channel_binding=")
+    ]
+    if clean_params:
+        settings.DATABASE_URL = f"{base_part}?{'&'.join(clean_params)}"
+    else:
+        settings.DATABASE_URL = base_part
+
 # Ensure temp directory exists
 os.makedirs(settings.TEMP_UPLOAD_DIR, exist_ok=True)

@@ -18,6 +18,12 @@ from sqlalchemy import delete
 
 async def clear_users(clear_all_clinical_data: bool = False):
     print(f"[INFO] Connecting to database: {settings.DATABASE_URL.split('@')[-1]}")
+    
+    # Ensure tables exist first
+    from app.db.base import Base
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+        
     async with AsyncSessionLocal() as session:
         try:
             # Delete dependent auth tables first
