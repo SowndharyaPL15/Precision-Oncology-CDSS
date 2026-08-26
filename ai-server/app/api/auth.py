@@ -83,7 +83,7 @@ class UserProfileResponse(BaseModel):
     has_webauthn_registered: bool
     last_login: Optional[datetime] = None
     last_device: Optional[str] = None
-    created_at: datetime
+    created_at: Optional[datetime] = None
 
 class AdminLoginStep1Request(BaseModel):
     email: EmailStr
