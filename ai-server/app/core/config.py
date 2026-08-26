@@ -32,5 +32,11 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
+# Fix Render/Heroku PostgreSQL URL scheme for SQLAlchemy + asyncpg
+if settings.DATABASE_URL.startswith("postgres://"):
+    settings.DATABASE_URL = settings.DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
+elif settings.DATABASE_URL.startswith("postgresql://") and not settings.DATABASE_URL.startswith("postgresql+asyncpg://"):
+    settings.DATABASE_URL = settings.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+
 # Ensure temp directory exists
 os.makedirs(settings.TEMP_UPLOAD_DIR, exist_ok=True)
