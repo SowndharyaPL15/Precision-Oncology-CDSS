@@ -722,65 +722,88 @@ export default function BreastPrediction() {
                       </div>
 
                       <div className="border rounded-4 bg-dark overflow-hidden p-3 position-relative d-flex flex-column align-items-center justify-content-center" style={{ minHeight: '360px' }}>
-                        <Tabs activeKey={activeTab} onSelect={(k) => setActiveTab(k || 'overlay')} className="w-100 justify-content-center border-0 mb-3 bg-dark bg-opacity-50 rounded p-1">
-                          <Tab eventKey="original" title={<span className="text-white small px-2"><FaImage className="me-1"/> Original Scan</span>}>
-                            <div className="overflow-auto text-center" style={{ maxHeight: '300px' }}>
+                        {/* Custom Dark Tab Switcher */}
+                        <div className="d-flex justify-content-center gap-2 mb-4 bg-black bg-opacity-40 p-1.5 rounded-3 border border-secondary border-opacity-25" style={{ maxWidth: '440px', width: '100%' }}>
+                          <button 
+                            type="button"
+                            onClick={() => setActiveTab('original')} 
+                            className={`btn btn-sm px-3 py-1.5 rounded-2 fw-semibold transition-all border-0 ${activeTab === 'original' ? 'btn-info text-dark shadow-sm' : 'text-light bg-transparent opacity-50 hover-opacity-100'}`}
+                            style={{ flex: 1 }}
+                          >
+                            <FaImage className="me-1" /> Original Slide
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={() => setActiveTab('heatmap')} 
+                            className={`btn btn-sm px-3 py-1.5 rounded-2 fw-semibold transition-all border-0 ${activeTab === 'heatmap' ? 'btn-info text-dark shadow-sm' : 'text-light bg-transparent opacity-50 hover-opacity-100'}`}
+                            style={{ flex: 1 }}
+                          >
+                            <FaThermometerHalf className="me-1" /> Heatmap
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={() => setActiveTab('overlay')} 
+                            className={`btn btn-sm px-3 py-1.5 rounded-2 fw-semibold transition-all border-0 ${activeTab === 'overlay' ? 'btn-info text-dark shadow-sm' : 'text-light bg-transparent opacity-50 hover-opacity-100'}`}
+                            style={{ flex: 1 }}
+                          >
+                            <FaSearchPlus className="me-1" /> Overlay
+                          </button>
+                        </div>
+
+                        {/* Custom Tab Contents */}
+                        <div className="overflow-auto text-center w-100" style={{ maxHeight: '300px' }}>
+                          {activeTab === 'original' && (
+                            <img 
+                              src={getMediaUrl(result.gradcam?.original_path)} 
+                              alt="Original Pathological Image" 
+                              style={{ transform: `scale(${zoomScale})`, transition: 'transform 0.2s', maxHeight: '250px', objectFit: 'contain' }}
+                              className="rounded shadow"
+                              onError={(e: any) => {
+                                e.target.src = preview || 'https://via.placeholder.com/400x400/eeeeee/333333?text=Original+Scan';
+                              }}
+                            />
+                          )}
+                          {activeTab === 'heatmap' && (
+                            <img 
+                              src={getMediaUrl(result.gradcam?.heatmap_path)} 
+                              alt="Grad-CAM Heatmap" 
+                              style={{ transform: `scale(${zoomScale})`, transition: 'transform 0.2s', maxHeight: '250px', objectFit: 'contain' }}
+                              className="rounded shadow"
+                              onError={(e: any) => {
+                                e.target.src = 'https://via.placeholder.com/400x400/d63384/ffffff?text=Heatmap+Not+Generated';
+                              }}
+                            />
+                          )}
+                          {activeTab === 'overlay' && (
+                            <div className="position-relative d-inline-block rounded overflow-hidden shadow" style={{ maxHeight: '250px', transform: `scale(${zoomScale})`, transition: 'transform 0.2s' }}>
                               <img 
                                 src={getMediaUrl(result.gradcam?.original_path)} 
                                 alt="Original Pathological Image" 
-                                style={{ transform: `scale(${zoomScale})`, transition: 'transform 0.2s', maxHeight: '250px', objectFit: 'contain' }}
-                                className="rounded shadow"
+                                style={{ maxHeight: '250px', objectFit: 'contain' }}
                                 onError={(e: any) => {
                                   e.target.src = preview || 'https://via.placeholder.com/400x400/eeeeee/333333?text=Original+Scan';
                                 }}
                               />
-                            </div>
-                          </Tab>
-                          <Tab eventKey="heatmap" title={<span className="text-white small px-2"><FaThermometerHalf className="me-1"/> Grad-CAM Heatmap</span>}>
-                            <div className="overflow-auto text-center" style={{ maxHeight: '300px' }}>
                               <img 
                                 src={getMediaUrl(result.gradcam?.heatmap_path)} 
                                 alt="Grad-CAM Heatmap" 
-                                style={{ transform: `scale(${zoomScale})`, transition: 'transform 0.2s', maxHeight: '250px', objectFit: 'contain' }}
-                                className="rounded shadow"
+                                style={{ 
+                                  position: 'absolute', 
+                                  top: 0, 
+                                  left: 0, 
+                                  width: '100%', 
+                                  height: '100%', 
+                                  objectFit: 'contain',
+                                  opacity: heatmapOpacity,
+                                  mixBlendMode: blendMode as any
+                                }}
                                 onError={(e: any) => {
-                                  e.target.src = 'https://via.placeholder.com/400x400/d63384/ffffff?text=Heatmap+Not+Generated';
+                                  e.target.style.display = 'none';
                                 }}
                               />
                             </div>
-                          </Tab>
-                          <Tab eventKey="overlay" title={<span className="text-white small px-2"><FaSearchPlus className="me-1"/> Diagnostic Overlay</span>}>
-                            <div className="overflow-auto text-center" style={{ maxHeight: '300px' }}>
-                              <div className="position-relative d-inline-block rounded overflow-hidden" style={{ maxHeight: '250px', transform: `scale(${zoomScale})`, transition: 'transform 0.2s' }}>
-                                <img 
-                                  src={getMediaUrl(result.gradcam?.original_path)} 
-                                  alt="Original Pathological Image" 
-                                  style={{ maxHeight: '250px', objectFit: 'contain' }}
-                                  onError={(e: any) => {
-                                    e.target.src = preview || 'https://via.placeholder.com/400x400/eeeeee/333333?text=Original+Scan';
-                                  }}
-                                />
-                                <img 
-                                  src={getMediaUrl(result.gradcam?.heatmap_path)} 
-                                  alt="Grad-CAM Heatmap" 
-                                  style={{ 
-                                    position: 'absolute', 
-                                    top: 0, 
-                                    left: 0, 
-                                    width: '100%', 
-                                    height: '100%', 
-                                    objectFit: 'contain',
-                                    opacity: heatmapOpacity,
-                                    mixBlendMode: blendMode as any
-                                  }}
-                                  onError={(e: any) => {
-                                    e.target.style.display = 'none';
-                                  }}
-                                />
-                              </div>
-                            </div>
-                          </Tab>
-                        </Tabs>
+                          )}
+                        </div>
                         
                         {activeTab === 'overlay' && (
                           <div className="w-100 mt-2 px-3 py-2 bg-dark bg-opacity-25 rounded border border-secondary text-white small">
