@@ -138,6 +138,21 @@ async def signup(req: SignupRequest, request: Request, db: AsyncSession = Depend
         role=role
     )
     db.add(user)
+    await db.flush() # Generate user_id
+
+    # If it is a clinician, also add to the doctors table to satisfy foreign keys
+    if role in ["doctor", "pathologist"]:
+        from app.db.models import Doctor
+        doctor_rec = Doctor(
+            doctor_id=user.user_id,
+            full_name=req.full_name,
+            email=req.email.lower(),
+            password_hash=user.password_hash,
+            specialization="Oncologist" if role == "doctor" else "Pathologist",
+            hospital="Hospital"
+        )
+        db.add(doctor_rec)
+
     await db.commit()
     await db.refresh(user)
 

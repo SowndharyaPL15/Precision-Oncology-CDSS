@@ -55,15 +55,31 @@ async def startup_db():
 
         async with AsyncSessionLocal() as session:
             # Seed default doctor account if not exists
+            from app.db.models import Doctor
             res = await session.execute(select(User).where(User.email == "doctor@hospital.org"))
-            if not res.scalars().first():
-                doc = User(
+            user_doc = res.scalars().first()
+            if not user_doc:
+                user_doc = User(
                     full_name="Dr. Sarah Jenkins",
                     email="doctor@hospital.org",
                     password_hash=get_password_hash("doctor123"),
                     role="doctor"
                 )
-                session.add(doc)
+                session.add(user_doc)
+                await session.flush() # Generate user_id
+                
+            # Seed matching Doctor record if not exists
+            res_doc = await session.execute(select(Doctor).where(Doctor.email == "doctor@hospital.org"))
+            if not res_doc.scalars().first():
+                doctor_rec = Doctor(
+                    doctor_id=user_doc.user_id,
+                    full_name="Dr. Sarah Jenkins",
+                    email="doctor@hospital.org",
+                    password_hash=user_doc.password_hash,
+                    specialization="Oncologist",
+                    hospital="General Hospital"
+                )
+                session.add(doctor_rec)
 
             # Seed default admin account if not exists
             res_admin = await session.execute(select(User).where(User.email == "admin@hospital.org"))
