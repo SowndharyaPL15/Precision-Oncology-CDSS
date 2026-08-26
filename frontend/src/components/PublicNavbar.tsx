@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaStethoscope, FaBars, FaTimes } from 'react-icons/fa';
+import { useAuth } from '../context/AuthContext';
 
 export default function PublicNavbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
+  const { isAuthenticated, user } = useAuth();
 
   const navLinks = [
     { to: '/', label: 'Home' },
@@ -46,8 +48,16 @@ export default function PublicNavbar() {
 
         {/* CTA Buttons */}
         <div style={styles.ctaGroup}>
-          <Link to="/login" style={styles.btnOutline}>Sign In</Link>
-          <Link to="/signup" style={styles.btnPrimary}>Sign Up</Link>
+          {isAuthenticated ? (
+            <Link to={user?.role === 'admin' ? '/admin/dashboard' : '/dashboard'} style={styles.btnPrimary}>
+              Go to Portal
+            </Link>
+          ) : (
+            <>
+              <Link to="/login" style={styles.btnOutline}>Sign In</Link>
+              <Link to="/signup" style={styles.btnPrimary}>Sign Up</Link>
+            </>
+          )}
         </div>
 
         {/* Mobile Hamburger */}
@@ -80,8 +90,16 @@ export default function PublicNavbar() {
               </Link>
             ))}
             <div style={{ display: 'flex', gap: '0.75rem', padding: '0.5rem 1.5rem 1rem' }}>
-              <Link to="/login" style={{ ...styles.btnOutline, flex: 1, textAlign: 'center' }} onClick={() => setMenuOpen(false)}>Sign In</Link>
-              <Link to="/signup" style={{ ...styles.btnPrimary, flex: 1, textAlign: 'center' }} onClick={() => setMenuOpen(false)}>Sign Up</Link>
+              {isAuthenticated ? (
+                <Link to={user?.role === 'admin' ? '/admin/dashboard' : '/dashboard'} style={{ ...styles.btnPrimary, flex: 1, textAlign: 'center' }} onClick={() => setMenuOpen(false)}>
+                  Go to Portal
+                </Link>
+              ) : (
+                <>
+                  <Link to="/login" style={{ ...styles.btnOutline, flex: 1, textAlign: 'center' }} onClick={() => setMenuOpen(false)}>Sign In</Link>
+                  <Link to="/signup" style={{ ...styles.btnPrimary, flex: 1, textAlign: 'center' }} onClick={() => setMenuOpen(false)}>Sign Up</Link>
+                </>
+              )}
             </div>
           </motion.div>
         )}

@@ -21,7 +21,7 @@ export default function Sidebar() {
       <hr />
       <ul className="nav nav-pills flex-column mb-auto">
         <li className="nav-item">
-          <Link to="/" className={`nav-link text-white ${isActive('/')}`}>
+          <Link to="/dashboard" className={`nav-link text-white ${isActive('/dashboard')}`}>
             <FaChartBar className="me-2" />
             Dashboard
           </Link>
