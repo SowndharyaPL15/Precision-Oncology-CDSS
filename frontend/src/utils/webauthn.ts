@@ -128,6 +128,11 @@ export const registerPasskey = async (
     challengeBuffer = randomChallenge();
   }
 
+  // Force local fallback if backend returned localhost but we are running on a remote domain
+  if (rpId === 'localhost' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    rpId = window.location.hostname;
+  }
+
   const creationOptions: PublicKeyCredentialCreationOptions = {
     challenge: challengeBuffer as unknown as BufferSource,
     rp: { name: rpName, id: rpId },
@@ -248,6 +253,11 @@ export const updateFingerprint = async (): Promise<{
     // Re-throw descriptive errors we already set
     if (err?.message && !err?.response) throw err;
     throw new Error(`Unable to register the new credential. Could not contact the server: ${err?.message || 'unknown error'}`);
+  }
+
+  // Force local fallback if backend returned localhost but we are running on a remote domain
+  if (rpId === 'localhost' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    rpId = window.location.hostname;
   }
 
   // ── Step 2: Invoke native WebAuthn registration ceremony ──
