@@ -81,6 +81,19 @@ async def startup_db():
                 )
                 session.add(doctor_rec)
 
+            # Seed default doctor ID 'doc-1' to satisfy hardcoded frontend forms
+            res_doc_1 = await session.execute(select(Doctor).where(Doctor.doctor_id == "doc-1"))
+            if not res_doc_1.scalars().first():
+                doctor_rec_1 = Doctor(
+                    doctor_id="doc-1",
+                    full_name="System Default Doctor",
+                    email="default_doctor@hospital.org",
+                    password_hash=get_password_hash("doctor123"),
+                    specialization="Oncologist",
+                    hospital="General Hospital"
+                )
+                session.add(doctor_rec_1)
+
             # Seed default admin account if not exists
             res_admin = await session.execute(select(User).where(User.email == "admin@hospital.org"))
             if not res_admin.scalars().first():
