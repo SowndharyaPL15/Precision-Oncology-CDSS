@@ -41,6 +41,7 @@ export default function Register() {
   const [faceEnrolled, setFaceEnrolled] = useState(false);
   const [faceStatusText, setFaceStatusText] = useState("Position your face inside the frame");
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   /* fingerprint */
   const [enrollingFingerprint, setEnrollingFingerprint] = useState(false);
@@ -90,15 +91,20 @@ export default function Register() {
     setFaceStatusText("Position your face inside the frame");
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+      streamRef.current = stream;
       if (videoRef.current) { videoRef.current.srcObject = stream; await videoRef.current.play(); setCameraActive(true); }
     } catch { setFaceStatusText("Webcam access denied."); toast.error("Unable to access webcam."); }
   };
 
   const stopCamera = () => {
-    if (videoRef.current?.srcObject) {
-      (videoRef.current.srcObject as MediaStream).getTracks().forEach((t) => t.stop());
-      setCameraActive(false);
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
     }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setCameraActive(false);
   };
 
   const executeFaceEnrollment = async () => {

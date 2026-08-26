@@ -41,6 +41,7 @@ export default function Login() {
   const [verifyingWebAuthn, setVerifyingWebAuthn] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   // ── STEP 1: Password Submission ──
   const handlePasswordSubmit = async (e: React.FormEvent) => {
@@ -85,6 +86,7 @@ export default function Login() {
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+      streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
@@ -97,11 +99,14 @@ export default function Login() {
   };
 
   const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach(track => track.stop());
-      setCameraActive(false);
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
     }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setCameraActive(false);
   };
 
   // ── STEP 2: Execute Genuine Face Verification ──
