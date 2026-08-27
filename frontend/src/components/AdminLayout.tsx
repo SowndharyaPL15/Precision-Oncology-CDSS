@@ -1,11 +1,13 @@
+import { useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import AdminSidebar from './AdminSidebar';
-import { FaShieldAlt, FaCircle } from 'react-icons/fa';
+import { FaShieldAlt, FaCircle, FaBars } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 
 export default function AdminLayout() {
   const location = useLocation();
   const { user } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const getBreadcrumb = (path: string) => {
     switch (path) {
@@ -23,22 +25,35 @@ export default function AdminLayout() {
 
   return (
     <div style={styles.layoutContainer}>
-      <AdminSidebar />
-      <div style={styles.mainWrapper}>
+      <AdminSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <div className="admin-content-wrapper">
         {/* Top Navbar */}
         <header style={styles.topHeader}>
-          <div style={styles.breadcrumbArea}>
-            <FaShieldAlt style={{ color: '#0284C7', fontSize: '1.1rem' }} />
-            <span style={styles.breadcrumbText}>{getBreadcrumb(location.pathname)}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <button
+              className="btn btn-light d-lg-none me-1 border-0 p-1"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              aria-label="Toggle navigation"
+              style={{ fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <FaBars />
+            </button>
+            <div style={styles.breadcrumbArea}>
+              <FaShieldAlt style={{ color: '#0284C7', fontSize: '1.1rem' }} />
+              <span className="d-none d-sm-inline" style={styles.breadcrumbText}>{getBreadcrumb(location.pathname)}</span>
+              <span className="d-sm-none" style={{ ...styles.breadcrumbText, fontSize: '0.85rem' }}>
+                {getBreadcrumb(location.pathname).length > 20 ? 'Admin Portal' : getBreadcrumb(location.pathname)}
+              </span>
+            </div>
           </div>
 
           <div style={styles.headerRight}>
-            <div style={styles.statusIndicator}>
+            <div className="d-none d-md-flex" style={styles.statusIndicator}>
               <FaCircle style={{ color: '#10B981', fontSize: '0.55rem' }} />
               <span style={styles.statusText}>System Live</span>
             </div>
             <div style={styles.adminUserBadge}>
-              <span style={styles.adminUserEmail}>{user?.email || 'admin@hospital.org'}</span>
+              <span className="d-none d-sm-inline" style={styles.adminUserEmail}>{user?.email || 'admin@hospital.org'}</span>
               <span style={styles.roleChip}>ADMIN</span>
             </div>
           </div>
@@ -61,13 +76,6 @@ const styles: Record<string, React.CSSProperties> = {
     fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
     color: '#0F172A',
   },
-  mainWrapper: {
-    marginLeft: '260px',
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    minHeight: '100vh',
-  },
   topHeader: {
     height: '64px',
     backgroundColor: '#FFFFFF',
@@ -75,7 +83,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '0 2rem',
+    padding: '0 1rem',
     position: 'sticky',
     top: 0,
     zIndex: 90,
@@ -135,7 +143,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   contentArea: {
     flex: 1,
-    padding: '2rem',
+    padding: '1.5rem',
     maxWidth: '1400px',
     width: '100%',
     margin: '0 auto',

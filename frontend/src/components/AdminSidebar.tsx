@@ -2,7 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   FaStethoscope, FaTachometerAlt, FaUsers, FaUserLock, FaClipboardList,
-  FaShieldAlt, FaServer, FaBrain, FaCog, FaSignOutAlt, FaUserShield, FaUser
+  FaShieldAlt, FaServer, FaBrain, FaCog, FaSignOutAlt, FaUserShield, FaUser, FaTimes
 } from 'react-icons/fa';
 
 const navItems = [
@@ -16,68 +16,101 @@ const navItems = [
   { to: '/admin/settings', icon: <FaCog />, label: 'Settings' },
 ];
 
-export default function AdminSidebar() {
+interface AdminSidebarProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
   const location = useLocation();
   const { logout, user } = useAuth();
 
   const isActive = (path: string) => location.pathname === path;
 
+  const handleLinkClick = () => {
+    if (window.innerWidth < 992) {
+      onClose();
+    }
+  };
+
   return (
-    <aside style={styles.sidebar}>
-      {/* Brand Header */}
-      <div style={styles.brandArea}>
-        <div style={styles.brandIconWrapper}>
-          <FaStethoscope style={{ color: '#38BDF8', fontSize: '1.25rem' }} />
-        </div>
-        <div>
-          <div style={styles.brandTitle}>Precision Oncology</div>
-          <div style={styles.brandSub}>Administration</div>
-        </div>
-      </div>
-
-      {/* Admin Privilege Tag */}
-      <div style={styles.adminTag}>
-        <FaUserShield style={{ color: '#38BDF8', fontSize: '0.85rem' }} />
-        <span style={styles.adminTagText}>Enterprise Admin</span>
-      </div>
-
-      {/* Navigation Links */}
-      <nav style={styles.nav}>
-        <div style={styles.navLabel}>ADMINISTRATION</div>
-        {navItems.map((item) => (
-          <Link
-            key={item.to}
-            to={item.to}
-            style={{
-              ...styles.navItem,
-              ...(isActive(item.to) ? styles.navItemActive : {}),
-            }}
+    <>
+      {isOpen && (
+        <div className="sidebar-backdrop" onClick={onClose} style={{ zIndex: 1005 }}></div>
+      )}
+      <aside 
+        className={`sidebar-responsive ${isOpen ? 'show' : ''}`}
+        style={{
+          ...styles.sidebar,
+          zIndex: 1010
+        }}
+      >
+        {/* Brand Header */}
+        <div style={{ ...styles.brandArea, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={styles.brandIconWrapper}>
+              <FaStethoscope style={{ color: '#38BDF8', fontSize: '1.25rem' }} />
+            </div>
+            <div>
+              <div style={styles.brandTitle}>Precision Oncology</div>
+              <div style={styles.brandSub}>Administration</div>
+            </div>
+          </div>
+          <button 
+            className="btn btn-dark d-lg-none border-0 p-1" 
+            onClick={onClose}
+            aria-label="Close sidebar"
+            style={{ fontSize: '1.2rem', color: '#94A3B8', backgroundColor: 'transparent' }}
           >
-            <span style={styles.navIcon}>{item.icon}</span>
-            <span style={styles.navText}>{item.label}</span>
+            <FaTimes />
+          </button>
+        </div>
+
+        {/* Admin Privilege Tag */}
+        <div style={styles.adminTag}>
+          <FaUserShield style={{ color: '#38BDF8', fontSize: '0.85rem' }} />
+          <span style={styles.adminTagText}>Enterprise Admin</span>
+        </div>
+
+        {/* Navigation Links */}
+        <nav style={styles.nav}>
+          <div style={styles.navLabel}>ADMINISTRATION</div>
+          {navItems.map((item) => (
+            <Link
+              key={item.to}
+              to={item.to}
+              onClick={handleLinkClick}
+              style={{
+                ...styles.navItem,
+                ...(isActive(item.to) ? styles.navItemActive : {}),
+              }}
+            >
+              <span style={styles.navIcon}>{item.icon}</span>
+              <span style={styles.navText}>{item.label}</span>
+            </Link>
+          ))}
+        </nav>
+
+        {/* Flex Spacer */}
+        <div style={{ flex: 1 }} />
+
+        {/* Admin Profile & Logout Section */}
+        <div style={styles.userArea}>
+          <Link to="/admin/settings" style={styles.profileBox} onClick={handleLinkClick}>
+            <div style={styles.userAvatar}>
+              {user?.name ? user.name.charAt(0).toUpperCase() : <FaUser />}
+            </div>
+            <div style={{ overflow: 'hidden' }}>
+              <div style={styles.userName}>{user?.name || 'Administrator'}</div>
+              <div style={styles.userRole}>System Administrator</div>
+            </div>
           </Link>
-        ))}
-      </nav>
-
-      {/* Flex Spacer */}
-      <div style={{ flex: 1 }} />
-
-      {/* Admin Profile & Logout Section */}
-      <div style={styles.userArea}>
-        <Link to="/admin/settings" style={styles.profileBox}>
-          <div style={styles.userAvatar}>
-            {user?.name ? user.name.charAt(0).toUpperCase() : <FaUser />}
-          </div>
-          <div style={{ overflow: 'hidden' }}>
-            <div style={styles.userName}>{user?.name || 'Administrator'}</div>
-            <div style={styles.userRole}>System Administrator</div>
-          </div>
-        </Link>
-        <button onClick={logout} style={styles.logoutBtn}>
-          <FaSignOutAlt style={{ marginRight: '0.4rem' }} /> Sign Out
-        </button>
-      </div>
-    </aside>
+          <button onClick={logout} style={styles.logoutBtn}>
+            <FaSignOutAlt style={{ marginRight: '0.4rem' }} /> Sign Out
+          </button>
+        </div>
+      </aside>
+    </>
   );
 }
 
@@ -94,7 +127,6 @@ const styles: Record<string, React.CSSProperties> = {
     flexDirection: 'column',
     padding: '1.25rem 1rem',
     overflowY: 'auto',
-    zIndex: 100,
     borderRight: '1px solid #1E293B',
     boxShadow: '4px 0 24px rgba(0, 0, 0, 0.12)',
   },
@@ -247,3 +279,4 @@ const styles: Record<string, React.CSSProperties> = {
     transition: 'all 0.15s ease-in-out',
   },
 };
+

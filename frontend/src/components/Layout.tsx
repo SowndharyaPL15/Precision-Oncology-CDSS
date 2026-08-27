@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import TopNavbar from './TopNavbar';
@@ -5,12 +6,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Layout() {
   const location = useLocation();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   
   return (
     <div className="d-flex" style={{ backgroundColor: 'var(--light-gray)' }}>
-      <Sidebar />
-      <div className="flex-grow-1 d-flex flex-column" style={{ marginLeft: '280px', minHeight: '100vh', overflowX: 'hidden' }}>
-        <TopNavbar />
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <div className="main-content-wrapper">
+        <TopNavbar onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
         <main className="container-fluid p-4 p-xl-5 flex-grow-1 position-relative">
           <AnimatePresence mode="wait">
             <motion.div

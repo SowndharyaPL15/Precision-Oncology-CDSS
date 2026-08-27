@@ -31,7 +31,7 @@ export default function PublicNavbar() {
         </Link>
 
         {/* Desktop Nav */}
-        <nav style={styles.desktopNav}>
+        <nav className="public-desktop-nav" style={styles.desktopNav}>
           {navLinks.map((link) => (
             <Link
               key={link.to}
@@ -47,7 +47,7 @@ export default function PublicNavbar() {
         </nav>
 
         {/* CTA Buttons */}
-        <div style={styles.ctaGroup}>
+        <div className="public-cta-group" style={styles.ctaGroup}>
           {isAuthenticated ? (
             <Link to={user?.role === 'admin' ? '/admin/dashboard' : '/dashboard'} style={styles.btnPrimary}>
               Go to Portal
@@ -62,6 +62,7 @@ export default function PublicNavbar() {
 
         {/* Mobile Hamburger */}
         <button
+          className="public-hamburger"
           style={styles.hamburger}
           onClick={() => setMenuOpen(!menuOpen)}
           aria-label="Toggle menu"

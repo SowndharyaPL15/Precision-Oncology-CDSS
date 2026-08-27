@@ -1,17 +1,28 @@
 import { Navbar, Container, Form, InputGroup, Nav, Dropdown } from 'react-bootstrap';
-import { FaStethoscope, FaSearch, FaBell, FaUserMd, FaCog, FaSignOutAlt } from 'react-icons/fa';
+import { FaStethoscope, FaSearch, FaBell, FaUserMd, FaCog, FaSignOutAlt, FaBars } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
 
-export default function TopNavbar() {
+interface TopNavbarProps {
+  onToggleSidebar: () => void;
+}
+
+export default function TopNavbar({ onToggleSidebar }: TopNavbarProps) {
   const { user, logout } = useAuth();
 
   return (
     <Navbar bg="white" expand="lg" className="shadow-sm py-2 px-3 border-bottom sticky-top" style={{ zIndex: 1000 }}>
       <Container fluid className="px-0 px-md-3 d-flex align-items-center">
-        {/* Mobile menu toggle would go here if needed, but sidebar is fixed usually on desktop */}
+        {/* Mobile menu toggle */}
+        <button
+          className="btn btn-light d-lg-none me-2 border-0"
+          onClick={onToggleSidebar}
+          aria-label="Toggle navigation"
+        >
+          <FaBars />
+        </button>
         
-        <Navbar.Brand as={Link} to="/" className="d-flex align-items-center text-primary d-md-none fw-bold">
+        <Navbar.Brand as={Link} to="/" className="d-flex align-items-center text-primary d-lg-none fw-bold">
           <FaStethoscope className="me-2 fs-4" />
           <span className="fs-5">Precision Oncology</span>
         </Navbar.Brand>

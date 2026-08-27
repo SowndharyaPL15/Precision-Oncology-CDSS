@@ -98,3 +98,84 @@ html, body {
 @media print {
   body { background: #fff; color: #000; }
 }
+
+/* ── Responsive Styling overrides ── */
+@media (max-width: 991.98px) {
+  .sidebar-responsive {
+    transform: translateX(-100%);
+    transition: transform 0.3s ease-in-out;
+  }
+  
+  .sidebar-responsive.show {
+    transform: translateX(0);
+  }
+  
+  .sidebar-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 95;
+  }
+  
+  .main-content-responsive {
+    margin-left: 0 !important;
+  }
+}
+
+@media (min-width: 992px) {
+  .sidebar-responsive {
+    transform: translateX(0) !important;
+  }
+}
+
+/* Public Navbar responsiveness helper classes */
+@media (max-width: 767.98px) {
+  .public-desktop-nav {
+    display: none !important;
+  }
+  .public-cta-group {
+    display: none !important;
+  }
+  .public-hamburger {
+    display: block !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .public-hamburger {
+    display: none !important;
+  }
+}
+
+/* Layout Wrappers */
+.main-content-wrapper {
+  margin-left: 280px;
+  min-height: 100vh;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  transition: margin-left 0.3s ease-in-out;
+}
+
+.admin-content-wrapper {
+  margin-left: 260px;
+  min-height: 100vh;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  transition: margin-left 0.3s ease-in-out;
+}
+
+@media (max-width: 991.98px) {
+  .main-content-wrapper,
+  .admin-content-wrapper {
+    margin-left: 0 !important;
+  }
+}
+
+
