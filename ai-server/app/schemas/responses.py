@@ -35,6 +35,12 @@ class ReportResponse(BaseModel):
     gradcam: Optional[GradCamResponse] = None
     recommendation: str
 
+class ImageValidationResponse(BaseModel):
+    is_valid: bool
+    confidence: float
+    message: str
+    details: Dict[str, Any]
+
 # --- Database-backed response schemas ---
 
 class DoctorResponse(BaseModel):

@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Box, Button, Typography, Grid, Card, CardContent, Select, MenuItem, InputLabel, FormControl, CircularProgress } from '@mui/material';
+import { Box, Button, Typography, Grid, Card, CardContent, Select, MenuItem, InputLabel, FormControl, CircularProgress, Alert } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import BiotechIcon from '@mui/icons-material/Biotech';
+import WarningIcon from '@mui/icons-material/Warning';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import apiClient from '../../api/client';
 import { toast } from 'react-toastify';
 
@@ -22,6 +25,18 @@ export default function NewPrediction() {
   const [dataset, setDataset] = useState('lung');
   const [modelName, setModelName] = useState('resnet50');
 
+  const [validation, setValidation] = useState<{
+    isValidating: boolean;
+    isValid: boolean | null;
+    confidence: number;
+    message: string;
+  }>({
+    isValidating: false,
+    isValid: null,
+    confidence: 0,
+    message: ''
+  });
+
   useEffect(() => {
     const fetchPatients = async () => {
       try {
@@ -39,17 +54,63 @@ export default function NewPrediction() {
     fetchPatients();
   }, []);
 
+  const validateUploadedFile = async (selectedFile: File) => {
+    setValidation({
+      isValidating: true,
+      isValid: null,
+      confidence: 0,
+      message: 'Validating microscopic H&E stain profile...'
+    });
+    const fd = new FormData();
+    fd.append('file', selectedFile);
+    try {
+      const resp = await apiClient.post('/validate-image', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      const data = resp.data;
+      setValidation({
+        isValidating: false,
+        isValid: data.is_valid,
+        confidence: data.confidence,
+        message: data.message
+      });
+      if (!data.is_valid) {
+        toast.error(`Invalid Image: ${data.message}`);
+      } else {
+        toast.success(`Histopathology slide verified (${(data.confidence * 100).toFixed(0)}% match)`);
+      }
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail || 'Image validation failed.';
+      setValidation({
+        isValidating: false,
+        isValid: false,
+        confidence: 0,
+        message: detail
+      });
+      toast.error(`Validation error: ${detail}`);
+    }
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
       setFile(selectedFile);
       setPreview(URL.createObjectURL(selectedFile));
+      validateUploadedFile(selectedFile);
     }
   };
 
   const handleSubmit = async () => {
     if (!file) {
       toast.warning('Please select a medical image first');
+      return;
+    }
+    if (validation.isValidating) {
+      toast.warning('Please wait until histopathology slide verification completes.');
+      return;
+    }
+    if (validation.isValid === false) {
+      toast.error(`Prediction blocked: ${validation.message || 'Only histopathology slides are permitted.'}`);
       return;
     }
     if (!patientId) {
@@ -71,8 +132,9 @@ export default function NewPrediction() {
       toast.success('Prediction generated successfully!');
       // Navigate to the result page with the report ID or prediction ID
       navigate(`/result/${response.data.prediction_id}`, { state: { report: response.data, preview } });
-    } catch (error) {
-      toast.error('Failed to generate prediction');
+    } catch (error: any) {
+      const detail = error.response?.data?.detail || 'Failed to generate prediction';
+      toast.error(`Analysis Error: ${detail}`);
     } finally {
       setLoading(false);
     }
@@ -84,14 +146,16 @@ export default function NewPrediction() {
       
       <Card sx={{ mb: 4 }}>
         <CardContent>
-          <Typography variant="h6" gutterBottom>1. Upload Medical Image</Typography>
+          <Typography variant="h6" gutterBottom>1. Upload Histopathology Image</Typography>
           <Box 
             sx={{ 
-              border: '2px dashed #ccc', 
+              border: '2px dashed',
+              borderColor: validation.isValid === false ? 'error.main' : validation.isValid === true ? 'success.main' : '#ccc',
               borderRadius: 2, 
               p: 4, 
               textAlign: 'center',
-              bgcolor: 'background.default',
+              bgcolor: validation.isValid === false ? 'error.light' : validation.isValid === true ? 'success.light' : 'background.default',
+              bgcolorOpacity: 0.05,
               cursor: 'pointer'
             }}
             component="label"
@@ -101,10 +165,36 @@ export default function NewPrediction() {
               <>
                 <CloudUploadIcon sx={{ fontSize: 60, color: 'text.secondary', mb: 2 }} />
                 <Typography variant="body1">Click to upload or drag and drop</Typography>
-                <Typography variant="body2" color="text.secondary">Supports PNG, JPG, JPEG, TIFF</Typography>
+                <Typography variant="body2" color="text.secondary">Only H&E stained histopathology slides permitted (PNG, JPG, TIFF)</Typography>
               </>
             ) : (
-              <img src={preview} alt="Preview" style={{ maxHeight: 300, maxWidth: '100%', objectFit: 'contain' }} />
+              <Box>
+                <img src={preview} alt="Preview" style={{ maxHeight: 260, maxWidth: '100%', objectFit: 'contain', borderRadius: 8 }} />
+                
+                {validation.isValidating && (
+                  <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+                    <CircularProgress size={18} />
+                    <Typography variant="body2" color="primary">Validating H&E microscopic stain profile...</Typography>
+                  </Box>
+                )}
+
+                {validation.isValid === true && (
+                  <Alert severity="success" icon={<CheckCircleIcon />} sx={{ mt: 2, textAlign: 'left' }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>✓ Verified Histopathology Slide</Typography>
+                    <Typography variant="caption">H&E Staining and Cellular Structure Confirmed ({(validation.confidence * 100).toFixed(1)}% match)</Typography>
+                  </Alert>
+                )}
+
+                {validation.isValid === false && (
+                  <Alert severity="error" icon={<WarningIcon />} sx={{ mt: 2, textAlign: 'left' }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>⚠️ Non-Histopathology Image Detected — Prediction Blocked</Typography>
+                    <Typography variant="body2">{validation.message}</Typography>
+                    <Typography variant="caption" sx={{ fontStyle: 'italic', display: 'block', mt: 0.5 }}>
+                      Please select an authentic microscopic H&E stained biopsy slide.
+                    </Typography>
+                  </Alert>
+                )}
+              </Box>
             )}
           </Box>
         </CardContent>
@@ -163,17 +253,27 @@ export default function NewPrediction() {
       <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
         <Button 
           variant="contained" 
+          color={validation.isValid === false ? "error" : "primary"}
           size="large" 
           onClick={handleSubmit} 
-          disabled={loading || !file || !patientId}
-          startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <BiotechIcon />}
+          disabled={loading || !file || !patientId || validation.isValid === false || validation.isValidating}
+          startIcon={
+            loading ? (
+              <CircularProgress size={20} color="inherit" />
+            ) : validation.isValid === false ? (
+              <WarningIcon />
+            ) : (
+              <BiotechIcon />
+            )
+          }
         >
-          {loading ? 'Processing Analysis...' : 'Generate Prediction & Report'}
+          {loading 
+            ? 'Processing Analysis...' 
+            : validation.isValid === false 
+              ? 'Prediction Blocked (Invalid Image)' 
+              : 'Generate Prediction & Report'}
         </Button>
       </Box>
     </Box>
   );
 }
-
-// Temporary workaround for the missing import in the original snippet, assuming it's available in the component context or we can use another icon.
-import BiotechIcon from '@mui/icons-material/Biotech';

@@ -13,12 +13,14 @@ from app.db.session import get_db
 from app.schemas.responses import (
     HealthResponse, ModelListResponse, ModelInfo,
     PredictionResponse, GradCamResponse, ReportResponse,
-    DoctorResponse, PatientResponse, PredictionDBResponse, ReportDBResponse
+    DoctorResponse, PatientResponse, PredictionDBResponse, ReportDBResponse,
+    ImageValidationResponse
 )
 from app.schemas.requests import PatientInfoSchema, DoctorCreateRequest, PatientCreateRequest, PatientUpdateRequest
 from app.services.inference_service import inference_service
 from app.services.explainability_service import explainability_service
 from app.services.report_service import report_service
+from app.processing.histopathology_validator import validate_histopathology_image
 from app.repositories.doctor_repository import DoctorRepository
 from app.repositories.patient_repository import PatientRepository
 from app.repositories.prediction_repository import PredictionRepository
@@ -93,7 +95,8 @@ async def get_models():
     return {"models": models_info}
 
 # ──────────────────────────────────────────────
-# AI Inference Endpoints
+# ──────────────────────────────────────────────
+# AI Inference Endpoints & Histopathology Validation
 # ──────────────────────────────────────────────
 
 # Model Name Mapping Helper
@@ -106,6 +109,35 @@ def map_model_name(model_name: str) -> str:
         "efficientnet": "efficientnet"
     }
     return mapping.get(model_name.lower(), model_name)
+
+@router.post("/validate-image", response_model=ImageValidationResponse)
+async def validate_image(
+    file: UploadFile = File(...)
+):
+    """
+    Validates whether the uploaded file is a genuine microscopic H&E histopathology slide.
+    Returns status, confidence score, diagnostic message, and optical metrics.
+    """
+    temp_path = save_upload_file(file)
+    try:
+        is_valid, confidence, message, details = validate_histopathology_image(temp_path)
+        return {
+            "is_valid": is_valid,
+            "confidence": confidence,
+            "message": message,
+            "details": details
+        }
+    except Exception as e:
+        logger.error(f"Image validation encountered error: {e}")
+        return {
+            "is_valid": False,
+            "confidence": 0.0,
+            "message": f"Validation failed: {str(e)}",
+            "details": {}
+        }
+    finally:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
 
 @router.post("/predict", response_model=PredictionDBResponse)
 async def predict(
@@ -138,7 +170,7 @@ async def predict(
         return prediction
 
     except ValueError as ve:
-        logger.warning(f"Invalid upload file: {ve}")
+        logger.warning(f"Invalid upload file rejected in /predict: {ve}")
         raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
         logger.error(f"Prediction failed: {e}")
@@ -163,9 +195,15 @@ async def gradcam(
     try:
         result = explainability_service.generate_explanation(model_name, dataset, temp_path)
         return result
+    except ValueError as ve:
+        logger.warning(f"Invalid upload file rejected in /gradcam: {ve}")
+        raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
         logger.error(f"GradCAM failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
 
 @router.post("/report", response_model=ReportDBResponse)
 async def generate_report(
@@ -214,9 +252,15 @@ async def generate_report(
         )
         return report
 
+    except ValueError as ve:
+        logger.warning(f"Invalid upload file rejected in /report: {ve}")
+        raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
         logger.error(f"Report generation failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
 
 @router.get("/comparison")
 async def get_comparison():

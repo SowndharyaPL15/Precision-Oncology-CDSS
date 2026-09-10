@@ -5,6 +5,7 @@ from app.core.config import settings
 from app.core.logging import logger
 from app.services.inference_service import inference_service
 from app.explainability.gradcam import GradCAMGenerator
+from app.processing.histopathology_validator import validate_histopathology_image
 
 class ExplainabilityService:
     def __init__(self):
@@ -26,6 +27,12 @@ class ExplainabilityService:
 
     def generate_explanation(self, model_name: str, dataset: str, image_path: str) -> dict:
         """Generates Grad-CAM visualizations for the given image."""
+        # Validate histopathology slide
+        is_valid, confidence_score, message, details = validate_histopathology_image(image_path)
+        if not is_valid:
+            logger.warning(f"Grad-CAM rejected non-histopathology image {image_path}: {message}")
+            raise ValueError(f"Non-histopathology image rejected: {message}")
+
         # Create a unique output directory for this explanation request inside temp_uploads
         request_id = str(uuid.uuid4())
         save_dir = os.path.join(settings.TEMP_UPLOAD_DIR, "explanations", request_id)

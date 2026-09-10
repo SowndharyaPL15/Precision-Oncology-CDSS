@@ -36,6 +36,20 @@ export default function BreastPrediction() {
   const [heatmapOpacity, setHeatmapOpacity] = useState<number>(0.6);
   const [blendMode, setBlendMode] = useState<string>('normal');
 
+  const [validation, setValidation] = useState<{
+    isValidating: boolean;
+    isValid: boolean | null;
+    confidence: number;
+    message: string;
+    details?: any;
+  }>({
+    isValidating: false,
+    isValid: null,
+    confidence: 0,
+    message: '',
+    details: null
+  });
+
   const [formData, setFormData] = useState({
     patientName: '',
     age: '',
@@ -60,6 +74,56 @@ export default function BreastPrediction() {
     'Compiling Clinical Report...',
     'Prediction Completed!'
   ];
+
+  const validateUploadedFile = async (file: File) => {
+    setValidation({
+      isValidating: true,
+      isValid: null,
+      confidence: 0,
+      message: 'Scanning image color spectrum and histology stain profile...',
+      details: null
+    });
+    const fd = new FormData();
+    fd.append('file', file);
+    try {
+      const resp = await apiClient.post('/validate-image', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      const data = resp.data;
+      setValidation({
+        isValidating: false,
+        isValid: data.is_valid,
+        confidence: data.confidence,
+        message: data.message,
+        details: data.details
+      });
+      if (!data.is_valid) {
+        toast.error(`Invalid Image: ${data.message}`, { autoClose: 5000 });
+      } else {
+        toast.success(`Histopathology slide verified (${(data.confidence * 100).toFixed(0)}% match)`);
+      }
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail || 'Image validation failed.';
+      setValidation({
+        isValidating: false,
+        isValid: false,
+        confidence: 0,
+        message: detail,
+        details: null
+      });
+      toast.error(`Validation error: ${detail}`);
+    }
+  };
+
+  const processSelectedFile = (file: File) => {
+    setImage(file);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+    validateUploadedFile(file);
+  };
 
   // Fetch patients
   useEffect(() => {
@@ -140,13 +204,7 @@ export default function BreastPrediction() {
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setImage(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      processSelectedFile(e.target.files[0]);
     }
   };
 
@@ -161,13 +219,7 @@ export default function BreastPrediction() {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const file = e.dataTransfer.files[0];
-      setImage(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      processSelectedFile(e.dataTransfer.files[0]);
     }
   };
 
@@ -185,6 +237,14 @@ export default function BreastPrediction() {
     e.preventDefault();
     if (!image) {
       toast.error('Please upload a histopathological image');
+      return;
+    }
+    if (validation.isValidating) {
+      toast.warning('Please wait while microscopic histopathology slide verification completes.');
+      return;
+    }
+    if (validation.isValid === false) {
+      toast.error(`Prediction blocked: ${validation.message || 'Only genuine H&E histopathology slides are permitted for diagnosis.'}`);
       return;
     }
     if (!selectedPatientId) {
@@ -269,6 +329,13 @@ export default function BreastPrediction() {
     setPreview(null);
     setResult(null);
     setZoomScale(1);
+    setValidation({
+      isValidating: false,
+      isValid: null,
+      confidence: 0,
+      message: '',
+      details: null
+    });
     if (patients.length > 0) {
       setFormData({
         patientName: patients[0].full_name || '',
@@ -363,28 +430,83 @@ export default function BreastPrediction() {
               </Card.Header>
               <Card.Body className="p-4">
                 <div 
-                  className={`border-2 border-dashed rounded-4 p-4 text-center transition-all ${preview ? 'border-success bg-success bg-opacity-10' : 'border-secondary bg-light'}`}
+                  className={`border-2 border-dashed rounded-4 p-4 text-center transition-all ${
+                    validation.isValid === false 
+                      ? 'border-danger bg-danger bg-opacity-10' 
+                      : validation.isValid === true 
+                        ? 'border-success bg-success bg-opacity-10' 
+                        : preview 
+                          ? 'border-primary bg-primary bg-opacity-10' 
+                          : 'border-secondary bg-light'
+                  }`}
                   onDragOver={handleDragOver}
                   onDrop={handleDrop}
-                  style={{ cursor: 'pointer', borderColor: preview ? '#198754' : '#d63384', minHeight: '180px' }}
+                  style={{ 
+                    cursor: 'pointer', 
+                    borderColor: validation.isValid === false ? '#dc3545' : validation.isValid === true ? '#198754' : '#d63384', 
+                    minHeight: '180px' 
+                  }}
                   onClick={() => document.getElementById('imageUpload')?.click()}
                 >
                   <input type="file" id="imageUpload" className="d-none" accept="image/jpeg, image/png, image/tiff" onChange={handleImageChange} />
                   
                   {preview ? (
                     <div className="text-center">
-                      <img src={preview} alt="Histopathology Preview" style={{ maxHeight: '200px', maxWidth: '100%', objectFit: 'contain' }} className="rounded mb-3 shadow" />
-                      <div className="text-success fw-bold d-flex align-items-center justify-content-center">
-                        <FaCheckCircle className="me-2" /> Histological Scan Loaded
-                      </div>
-                      <Button variant="link" size="sm" className="mt-2 text-danger text-decoration-none" onClick={(e) => { e.stopPropagation(); setImage(null); setPreview(null); }}>Remove and Replace</Button>
+                      <img 
+                        src={preview} 
+                        alt="Histopathology Preview" 
+                        style={{ maxHeight: '200px', maxWidth: '100%', objectFit: 'contain' }} 
+                        className={`rounded mb-3 shadow ${validation.isValid === false ? 'border border-3 border-danger' : ''}`} 
+                      />
+                      
+                      {validation.isValidating && (
+                        <div className="text-primary fw-semibold d-flex align-items-center justify-content-center my-2">
+                          <div className="spinner-border spinner-border-sm me-2" role="status" />
+                          <span>Validating microscopic H&E stain profile...</span>
+                        </div>
+                      )}
+
+                      {validation.isValid === true && (
+                        <div className="alert alert-success d-flex align-items-center justify-content-center py-2 px-3 mb-2 rounded-3 text-start">
+                          <FaCheckCircle className="me-2 text-success fs-5 flex-shrink-0" />
+                          <div>
+                            <strong className="d-block text-success">✓ Verified Histopathology Slide</strong>
+                            <small className="text-muted">H&E Stain & Microscopic Cellular Structure Confirmed ({(validation.confidence * 100).toFixed(1)}% match)</small>
+                          </div>
+                        </div>
+                      )}
+
+                      {validation.isValid === false && (
+                        <div className="alert alert-danger d-flex align-items-start text-start py-2 px-3 mb-2 rounded-3">
+                          <FaExclamationTriangle className="me-2 text-danger fs-5 flex-shrink-0 mt-1" />
+                          <div>
+                            <strong className="d-block text-danger">⚠️ Non-Histopathology Image Detected — AI Prediction Blocked</strong>
+                            <small className="d-block text-dark mb-1">{validation.message}</small>
+                            <small className="text-muted fst-italic">Please upload an authentic H&E stained breast tissue biopsy slide.</small>
+                          </div>
+                        </div>
+                      )}
+
+                      <Button 
+                        variant="link" 
+                        size="sm" 
+                        className={`mt-1 text-decoration-none ${validation.isValid === false ? 'btn btn-outline-danger btn-sm px-3 mt-2' : 'text-danger'}`} 
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          setImage(null); 
+                          setPreview(null); 
+                          setValidation({ isValidating: false, isValid: null, confidence: 0, message: '', details: null });
+                        }}
+                      >
+                        {validation.isValid === false ? '✕ Remove and Select Valid Slide' : 'Remove and Replace'}
+                      </Button>
                     </div>
                   ) : (
                     <div className="py-3">
                       <FaCloudUploadAlt className="fs-1 mb-3" style={{ color: '#d63384' }} />
                       <h5 className="fw-semibold text-dark">Drag & Drop Scan File</h5>
                       <p className="text-muted small mb-0">or click to browse from directory</p>
-                      <Badge bg="light" text="dark" className="mt-2 border">Supports PNG, JPG, TIFF</Badge>
+                      <Badge bg="light" text="dark" className="mt-2 border">Only H&E stained tissue slides permitted</Badge>
                     </div>
                   )}
                 </div>
@@ -513,8 +635,27 @@ export default function BreastPrediction() {
 
                   <div className="mt-4 pt-3 border-top d-flex justify-content-end gap-3">
                     <Button variant="light" type="button" onClick={handleReset} className="py-2 px-3 border"><FaUndo className="me-2"/> Clear All</Button>
-                    <Button variant="danger" type="submit" disabled={loading || !image || !selectedPatientId} className="px-4 py-2 fw-bold" style={{ backgroundColor: '#d63384', borderColor: '#d63384' }}>
-                      <FaRibbon className="me-2"/> Run AI Prediction
+                    <Button 
+                      variant={validation.isValid === false ? "danger" : "danger"} 
+                      type="submit" 
+                      disabled={loading || !image || !selectedPatientId || validation.isValid === false || validation.isValidating} 
+                      className={`px-4 py-2 fw-bold ${validation.isValid === false ? 'btn-danger shadow-sm' : ''}`}
+                      style={validation.isValid === false ? {} : { backgroundColor: '#d63384', borderColor: '#d63384' }}
+                    >
+                      {validation.isValidating ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm me-2" role="status" />
+                          Validating Slide...
+                        </>
+                      ) : validation.isValid === false ? (
+                        <>
+                          <FaExclamationTriangle className="me-2"/> Prediction Blocked (Invalid Image)
+                        </>
+                      ) : (
+                        <>
+                          <FaRibbon className="me-2"/> Run AI Prediction
+                        </>
+                      )}
                     </Button>
                   </div>
                 </Form>

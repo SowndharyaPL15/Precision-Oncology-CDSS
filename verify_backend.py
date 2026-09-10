@@ -243,6 +243,81 @@ def run_tests():
     except Exception as e:
         print(f"    [FAIL] Connection error: {e}")
 
+    # Test 11: Histopathology Validation Endpoint (Valid Image)
+    if os.path.exists(SAMPLE_IMAGE):
+        total_tests += 1
+        print("\n[*] Test 11: Image Validation Endpoint POST /validate-image (Valid Slide)")
+        try:
+            with open(SAMPLE_IMAGE, "rb") as img_file:
+                files = {"file": img_file}
+                r = requests.post(f"{BACKEND_URL}/validate-image", files=files)
+                if r.status_code == 200:
+                    res = r.json()
+                    if res.get("is_valid") is True:
+                        print(f"    Validated: {res.get('is_valid')}, Confidence: {res.get('confidence')*100:.1f}%, Message: {res.get('message')}")
+                        passed_tests += 1
+                        print("    [PASS]")
+                    else:
+                        print(f"    [FAIL] Expected valid=True, got: {res}")
+                else:
+                    print(f"    [FAIL] Status code: {r.status_code}, Response: {r.text}")
+        except Exception as e:
+            print(f"    [FAIL] Error validating image: {e}")
+
+    # Test 12: Histopathology Validation Endpoint (Invalid Non-Histology Image)
+    total_tests += 1
+    print("\n[*] Test 12: Image Validation Endpoint POST /validate-image (Invalid Non-Histology Image)")
+    invalid_img_path = os.path.join(WORKSPACE_DIR, "temp_non_histology_test.png")
+    try:
+        from PIL import Image
+        import numpy as np
+        # Create solid green non-histology image
+        arr = np.zeros((224, 224, 3), dtype=np.uint8)
+        arr[:, :, 1] = 200
+        arr[:, :, 0] = 30
+        Image.fromarray(arr).save(invalid_img_path)
+
+        with open(invalid_img_path, "rb") as img_file:
+            files = {"file": img_file}
+            r = requests.post(f"{BACKEND_URL}/validate-image", files=files)
+            if r.status_code == 200:
+                res = r.json()
+                if res.get("is_valid") is False:
+                    print(f"    Correctly Rejected: valid=False, Warning Message: {res.get('message')}")
+                    passed_tests += 1
+                    print("    [PASS]")
+                else:
+                    print(f"    [FAIL] Non-histology image was incorrectly accepted!")
+            else:
+                print(f"    [FAIL] Status code: {r.status_code}, Response: {r.text}")
+    except Exception as e:
+        print(f"    [FAIL] Error validating non-histology image: {e}")
+
+    # Test 13: Predict Endpoint Strict Rejection of Non-Histology Image (HTTP 400)
+    if patient_id and os.path.exists(invalid_img_path):
+        total_tests += 1
+        print("\n[*] Test 13: Predict Endpoint Blocking Non-Histology Image POST /predict")
+        try:
+            with open(invalid_img_path, "rb") as img_file:
+                files = {"file": img_file}
+                data = {
+                    "dataset": "lung",
+                    "model_name": "densenet121",
+                    "patient_id": patient_id
+                }
+                r = requests.post(f"{BACKEND_URL}/predict", files=files, data=data)
+                if r.status_code == 400:
+                    print(f"    Correctly Blocked with HTTP 400: {r.json().get('detail')}")
+                    passed_tests += 1
+                    print("    [PASS]")
+                else:
+                    print(f"    [FAIL] Expected HTTP 400, got status {r.status_code}: {r.text}")
+        except Exception as e:
+            print(f"    [FAIL] Error testing non-histology predict rejection: {e}")
+        finally:
+            if os.path.exists(invalid_img_path):
+                os.remove(invalid_img_path)
+
     print("\n--- Test Summary ---")
     print(f"Passed: {passed_tests} / {total_tests}")
     return passed_tests == total_tests

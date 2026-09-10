@@ -5,6 +5,7 @@ import tensorflow as tf
 from PIL import Image
 from app.core.config import settings
 from app.core.logging import logger
+from app.processing.histopathology_validator import validate_histopathology_image
 
 class InferenceService:
     def __init__(self):
@@ -42,7 +43,7 @@ class InferenceService:
         return model
 
     def preprocess_image(self, image_path: str) -> np.ndarray:
-        """Preprocesses the image for model inference with integrity checks."""
+        """Preprocesses the image for model inference with integrity and histopathology checks."""
         # Check file size (max 25MB)
         if os.path.getsize(image_path) > 25 * 1024 * 1024:
             raise ValueError("File size exceeds maximum allowed threshold (25 MB).")
@@ -52,6 +53,12 @@ class InferenceService:
                 img_check.verify()  # Verify image integrity
         except Exception:
             raise ValueError("Uploaded image file is corrupted or unreadable.")
+
+        # Strict Histopathology Slide Validation
+        is_valid, confidence_score, message, details = validate_histopathology_image(image_path)
+        if not is_valid:
+            logger.warning(f"Rejected non-histopathology image {image_path}: {message}")
+            raise ValueError(f"Non-histopathology image rejected: {message}")
 
         img = tf.keras.preprocessing.image.load_img(image_path, target_size=(224, 224))
         img_array = tf.keras.preprocessing.image.img_to_array(img)
@@ -63,9 +70,11 @@ class InferenceService:
         """Executes the forward pass and returns formatted prediction results."""
         start_time = time.time()
         
+        # Histopathology validation and preprocessing (raises ValueError if not histopathology)
+        img_array = self.preprocess_image(image_path)
+
         try:
             model = self.load_model(model_name, dataset)
-            img_array = self.preprocess_image(image_path)
             preds = model.predict(img_array)[0]
             
             pred_index = int(np.argmax(preds))
