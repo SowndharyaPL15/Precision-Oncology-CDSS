@@ -1,14 +1,15 @@
 """
 Histopathology Image Validator Module
 =====================================
-Provides strict validation to ensure uploaded images are genuine microscopic
-histopathology slides (Hematoxylin and Eosin - H&E stained tissue sections).
+Provides strict, multi-stage clinical validation to ensure uploaded images are
+genuine microscopic histopathology slides (Hematoxylin and Eosin - H&E stained
+tissue sections).
 
 Rejects:
-- Natural photographs (landscapes, people, animals, vegetation)
-- Non-histological medical images (grayscale X-rays, CT/MRI scans, ultrasounds)
-- Digital graphics, text documents, UI screenshots, diagrams
-- Blank, overexposed, underexposed, or corrupted image files
+- Text documents, job notices, PDFs, UI screenshots, and diagrams
+- Natural photographs (landscapes, people, animals, vegetation, objects)
+- Non-histological medical images (grayscale X-rays, CT scans, MRIs, ultrasounds)
+- Blank, overexposed, underexposed, solid-color, or corrupted image files
 """
 
 import os
@@ -21,17 +22,17 @@ def validate_histopathology_image(
     img_input: Union[str, np.ndarray, Image.Image]
 ) -> Tuple[bool, float, str, Dict[str, Any]]:
     """
-    Validates whether an input image meets the optical and histological criteria
-    of an H&E stained histopathology slide.
+    Validates whether an input image meets the optical, chromatic, and structural
+    criteria of an authentic H&E stained histopathology slide.
 
     Args:
         img_input: File path (str), NumPy array (RGB), or PIL Image.
 
     Returns:
         is_valid (bool): True if image is a verified histopathology slide, False otherwise.
-        confidence_score (float): Confidence level of histopathology classification [0.0 - 1.0].
-        message (str): Human-readable clinical diagnostic message or warning.
-        details (dict): Optical and stain composition metrics computed during analysis.
+        confidence_score (float): Confidence level of histopathology verification [0.0 - 1.0].
+        message (str): Human-readable clinical diagnostic message or rejection reason.
+        details (dict): Optical, chromatic, and spatial metrics computed during analysis.
     """
     # 1. Image Loading & Array Conversion
     try:
@@ -65,21 +66,22 @@ def validate_histopathology_image(
             {"shape": (h, w, c)}
         )
 
-    # 2. Normalize and compute HSV space
     norm_arr = arr / 255.0
     r, g, b = norm_arr[:, :, 0], norm_arr[:, :, 1], norm_arr[:, :, 2]
+    total_pixels = h * w
 
+    # 2. RGB to HSV Color Space Transformation
     max_c = np.maximum(np.maximum(r, g), b)
     min_c = np.minimum(np.minimum(r, g), b)
     delta = max_c - min_c
 
     s = np.zeros_like(max_c)
-    mask = max_c > 1e-6
+    mask = max_c > 1e-5
     s[mask] = delta[mask] / max_c[mask]
     v = max_c
 
     hue = np.zeros_like(max_c)
-    d_mask = delta > 1e-6
+    d_mask = delta > 1e-5
     r_max = (max_c == r) & d_mask
     g_max = (max_c == g) & d_mask
     b_max = (max_c == b) & d_mask
@@ -88,110 +90,147 @@ def validate_histopathology_image(
     hue[g_max] = 60.0 * (((b[g_max] - r[g_max]) / delta[g_max]) + 2)
     hue[b_max] = 60.0 * (((r[b_max] - g[b_max]) / delta[b_max]) + 4)
 
-    total_pixels = h * w
+    # 3. Brightfield Glass Background & Blank Image Detection
+    glass_mask = (v > 0.92) & (s < 0.08)
+    glass_ratio = float(np.sum(glass_mask) / total_pixels)
 
-    # 3. Tissue Segmentation
-    # Slide background under brightfield microscopy is near-white (high V, very low S)
-    # Pitch black borders or dark margins have low V
-    tissue_mask = ~((v > 0.94) & (s < 0.08)) & (v > 0.08)
-    tissue_count = np.sum(tissue_mask)
-    tissue_ratio = float(tissue_count / total_pixels)
-
-    if tissue_ratio < 0.03:
+    if glass_ratio > 0.96:
         return (
             False,
             0.0,
-            "No histological tissue detected. The slide appears to be completely blank, solid color, or overexposed.",
-            {"tissue_ratio": round(tissue_ratio, 4)}
+            "No histological tissue detected. The slide is blank, overexposed, or consists entirely of clear background glass.",
+            {"glass_ratio": round(glass_ratio, 4)}
         )
 
-    tissue_sats = s[tissue_mask]
-    tissue_hues = hue[tissue_mask]
-    mean_sat = float(np.mean(tissue_sats))
-
-    # 4. Grayscale / Monochrome Detection
-    # Radiographs, CT scans, MRIs, and documents lack chromatic staining.
-    sat_colored_ratio = float(np.sum(tissue_sats > 0.05) / max(len(tissue_sats), 1))
-    if mean_sat < 0.04 or sat_colored_ratio < 0.15:
+    # 4. Grayscale / Monochrome Radiograph & Document Detection
+    mean_sat = float(np.mean(s))
+    sat_colored_ratio = float(np.sum(s > 0.06) / total_pixels)
+    if mean_sat < 0.035 or sat_colored_ratio < 0.10:
         return (
             False,
             0.0,
-            "Grayscale or monochrome image detected (e.g. X-ray, CT scan, or document). Precision Oncology AI is designed exclusively for color H&E histopathology slides.",
+            "Grayscale or monochrome image detected (e.g. X-ray, CT scan, MRI, or document). Precision Oncology AI requires full-color H&E histopathology slides.",
             {
                 "mean_saturation": round(mean_sat, 4),
                 "sat_colored_ratio": round(sat_colored_ratio, 4)
             }
         )
 
-    # 5. Microscopic Cellular Texture & Nucleus Gradient (Laplacian Variance)
-    gray = 0.2989 * r + 0.5870 * g + 0.1140 * b
-    laplacian = np.abs(
-        gray[1:-1, 2:] + gray[1:-1, :-2] + gray[2:, 1:-1] + gray[:-2, 1:-1] - 4 * gray[1:-1, 1:-1]
+    # 5. Genuine H&E Stain Chromatic Verification
+    # Eosin: Pink / Rose / Magenta (Cytoplasm and extracellular matrix)
+    eosin_mask = (s > 0.08) & (
+        ((hue >= 295) & (hue <= 360)) |
+        ((hue >= 0) & (hue <= 25) & (r > g + 0.05) & (b >= g * 0.60))
     )
-    lap_var = float(np.var(laplacian))
 
-    if lap_var < 0.00003:
-        return (
-            False,
-            0.1,
-            "Image lacks microscopic cellular granularity, nuclear boundaries, and texture patterns characteristic of histopathology slides.",
-            {"laplacian_variance": round(lap_var, 6)}
-        )
+    # Hematoxylin: Purple / Indigo / Violet / Blue (Basophilic cellular nuclei)
+    hema_mask = (s > 0.08) & (hue >= 195) & (hue < 295) & (b > g)
 
-    # 6. Color Spectrum Analysis for H&E Staining
-    # Hematoxylin (Blue / Violet / Purple): Hue in [170, 310]
-    # Eosin (Pink / Magenta / Carmine Red / Rose): Hue in [300, 360] or [0, 50]
-    # Non-Histology Colors: Strong vegetation green (Hue 65-155 with saturation > 0.18)
-    green_nature_mask = (tissue_hues >= 65) & (tissue_hues <= 155) & (tissue_sats > 0.18)
-    green_nature_ratio = float(np.sum(green_nature_mask) / len(tissue_hues))
+    he_stain_mask = eosin_mask | hema_mask
+    he_stain_ratio = float(np.sum(he_stain_mask) / total_pixels)
 
-    if green_nature_ratio > 0.20:
-        return (
-            False,
-            0.05,
-            f"Natural outdoor/vegetation color signature detected ({green_nature_ratio*100:.1f}% green hues). Uploaded image is not a histopathology slide.",
-            {"green_ratio": round(green_nature_ratio, 4)}
-        )
+    # Tissue coverage (non-glass, non-black regions)
+    tissue_mask = ~glass_mask & (v > 0.05)
+    tissue_count = int(np.sum(tissue_mask))
+    tissue_stain_ratio = float(np.sum(he_stain_mask & tissue_mask) / max(tissue_count, 1))
 
-    # H&E Stain Concordance:
-    he_concordant_mask = (tissue_hues >= 170) | (tissue_hues <= 50) | (tissue_sats < 0.12)
-    he_concordance_ratio = float(np.sum(he_concordant_mask) / len(tissue_hues))
+    # 6. Non-Histological Foreign Color Detection (Vegetation, orange headers, UI highlights)
+    orange_yellow_mask = (s > 0.20) & (hue >= 25) & (hue <= 65) & (g > b * 1.20)
+    green_mask = (s > 0.20) & (hue > 65) & (hue <= 165)
+    foreign_ratio = float(np.sum(orange_yellow_mask | green_mask) / total_pixels)
 
-    # Channel Dominance: In H&E staining, Red (Eosin) and Blue (Hematoxylin) dominate over Green
-    tissue_r = r[tissue_mask]
-    tissue_g = g[tissue_mask]
-    tissue_b = b[tissue_mask]
-    he_channel_balance = float(np.mean((tissue_r >= tissue_g - 0.08) | (tissue_b >= tissue_g - 0.08)))
+    # 7. Spatial Flatness (Detects digital documents, PDFs, and UI screenshots)
+    gray = 0.2989 * r + 0.5870 * g + 0.1140 * b
+    dx = np.abs(gray[:, 1:] - gray[:, :-1])
+    dy = np.abs(gray[1:, :] - gray[:-1, :])
+    flat_pixels_x = np.sum(dx < 0.003) / (h * (w - 1))
+    flat_pixels_y = np.sum(dy < 0.003) / ((h - 1) * w)
+    flatness_ratio = float((flat_pixels_x + flat_pixels_y) / 2.0)
+
+    # 8. 3D Color Richness & Histogram Spread
+    hist, _ = np.histogramdd(norm_arr.reshape(-1, 3), bins=8, range=[[0, 1], [0, 1], [0, 1]])
+    non_empty_bins = int(np.sum(hist > (total_pixels * 0.0005)))
+
+    # 9. Gradient Isotropy (Biological Cellular vs Manhattan Grid / Text / UI)
+    gx = gray[1:-1, 2:] - gray[1:-1, :-2]
+    gy = gray[2:, 1:-1] - gray[:-2, 1:-1]
+    magnitude = np.sqrt(gx**2 + gy**2)
+    edge_mask = magnitude > 0.04
+    if np.sum(edge_mask) >= 50:
+        angles = np.arctan2(gy[edge_mask], gx[edge_mask]) % np.pi
+        a_hist, _ = np.histogram(angles, bins=8, range=[0, np.pi])
+        prob = a_hist / float(len(angles))
+        isotropy_entropy = float(-np.sum((prob + 1e-6) * np.log(prob + 1e-6)))
+    else:
+        isotropy_entropy = 0.0
 
     details = {
-        "tissue_ratio": round(tissue_ratio, 4),
-        "he_concordance": round(he_concordance_ratio, 4),
-        "he_channel_balance": round(he_channel_balance, 4),
-        "mean_saturation": round(mean_sat, 4),
-        "laplacian_variance": round(lap_var, 6),
-        "green_ratio": round(green_nature_ratio, 4)
+        "he_stain_ratio": round(he_stain_ratio, 4),
+        "tissue_stain_ratio": round(tissue_stain_ratio, 4),
+        "eosin_ratio": round(float(np.sum(eosin_mask) / total_pixels), 4),
+        "hematoxylin_ratio": round(float(np.sum(hema_mask) / total_pixels), 4),
+        "foreign_color_ratio": round(foreign_ratio, 4),
+        "flatness_ratio": round(flatness_ratio, 4),
+        "color_bins": non_empty_bins,
+        "isotropy_entropy": round(isotropy_entropy, 4),
+        "glass_ratio": round(glass_ratio, 4)
     }
 
-    if he_concordance_ratio < 0.65 or he_channel_balance < 0.60:
+    # Strict Clinical Rejection Filters
+    if he_stain_ratio < 0.08 or tissue_stain_ratio < 0.15:
         return (
             False,
-            0.2,
-            f"Stain chromatic profile does not match Hematoxylin & Eosin (H&E) histopathology staining (stain match: {he_concordance_ratio*100:.1f}%). Only histopathology slides are permitted.",
+            0.0,
+            f"Image lacks Hematoxylin & Eosin (H&E) cellular staining ({he_stain_ratio*100:.1f}% stain found, minimum 8.0% required). Uploaded image appears to be a document, photograph, or non-histological file.",
             details
         )
 
-    # 7. Compute overall confidence score [0.0 - 1.0]
-    confidence_score = min(
-        1.0,
-        0.4 * he_concordance_ratio
-        + 0.3 * he_channel_balance
-        + 0.2 * min(1.0, lap_var / 0.0002)
-        + 0.1 * min(1.0, mean_sat / 0.3)
+    if foreign_ratio > 0.05:
+        return (
+            False,
+            0.0,
+            f"Non-histological color artifacts detected ({foreign_ratio*100:.1f}% yellow/orange/green). Authentic H&E slides consist exclusively of purple Hematoxylin and pink Eosin staining.",
+            details
+        )
+
+    if non_empty_bins < 10:
+        return (
+            False,
+            0.0,
+            "Image exhibits discrete synthetic digital color distribution. Digital diagrams, screenshots, and text documents are not permitted.",
+            details
+        )
+
+    if flatness_ratio > 0.85 and he_stain_ratio < 0.20:
+        return (
+            False,
+            0.0,
+            "Image consists primarily of a flat monochrome page background (document or screenshot pattern).",
+            details
+        )
+
+    if isotropy_entropy < 1.2 and he_stain_ratio < 0.30:
+        return (
+            False,
+            0.0,
+            "Image edges align with orthogonal digital grids (text/UI layout) rather than microscopic organic cellular boundaries.",
+            details
+        )
+
+    # Valid H&E Slide Confidence Calculation
+    confidence = min(
+        0.99,
+        max(
+            0.85,
+            0.65
+            + 0.25 * min(1.0, he_stain_ratio / 0.40)
+            + 0.10 * min(1.0, isotropy_entropy / 2.0)
+        )
     )
 
     return (
         True,
-        round(confidence_score, 4),
+        round(confidence, 4),
         "Valid H&E histopathology slide verified.",
         details
     )

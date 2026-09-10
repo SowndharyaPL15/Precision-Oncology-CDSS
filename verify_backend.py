@@ -318,6 +318,38 @@ def run_tests():
             if os.path.exists(invalid_img_path):
                 os.remove(invalid_img_path)
 
+    # Test 14: Histopathology Validation on Document / Text Screenshot
+    total_tests += 1
+    print("\n[*] Test 14: Validate-Image Rejecting Document / Text Screenshot")
+    doc_path = os.path.join(WORKSPACE_DIR, "temp_doc_screenshot.png")
+    try:
+        from PIL import Image, ImageDraw
+        doc_img = Image.new("RGB", (800, 500), color=(254, 246, 235))
+        draw_c = ImageDraw.Draw(doc_img)
+        draw_c.rectangle([20, 20, 780, 45], fill=(245, 130, 32))  # Orange bar
+        for y in range(65, 450, 16):
+            draw_c.line([(40, y), (700, y)], fill=(30, 30, 30), width=2)
+        doc_img.save(doc_path)
+
+        with open(doc_path, "rb") as img_file:
+            files = {"file": img_file}
+            r = requests.post(f"{BACKEND_URL}/validate-image", files=files)
+            if r.status_code == 200:
+                res = r.json()
+                if res.get("is_valid") is False and res.get("confidence") == 0.0:
+                    print(f"    Correctly Rejected Document: valid=False, Confidence={res.get('confidence')}, Msg={res.get('message')}")
+                    passed_tests += 1
+                    print("    [PASS]")
+                else:
+                    print(f"    [FAIL] Document screenshot was incorrectly accepted: {res}")
+            else:
+                print(f"    [FAIL] Status code: {r.status_code}, Response: {r.text}")
+    except Exception as e:
+        print(f"    [FAIL] Error validating document screenshot: {e}")
+    finally:
+        if os.path.exists(doc_path):
+            os.remove(doc_path)
+
     print("\n--- Test Summary ---")
     print(f"Passed: {passed_tests} / {total_tests}")
     return passed_tests == total_tests
