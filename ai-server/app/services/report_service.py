@@ -24,7 +24,7 @@ class ReportService:
         # 2. Conditional Explainability: Only generate Grad-CAM heatmaps for cancer cases
         if is_cancer:
             logger.info(f"Malignancy detected ({pred_class}). Generating deep Grad-CAM explanation...")
-            gradcam = explainability_service.generate_explanation(model_name, dataset, image_path)
+            gradcam = explainability_service.generate_explanation(model_name, dataset, image_path, target_class=pred_class)
             gradcam["is_cancer"] = True
         else:
             logger.info(f"Non-cancerous/Normal tissue detected ({pred_class}). Grad-CAM omitted as per clinical protocol.")

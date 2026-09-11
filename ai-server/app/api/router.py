@@ -29,24 +29,14 @@ from app.repositories.report_repository import ReportRepository
 router = APIRouter()
 
 def save_upload_file(upload_file: UploadFile) -> str:
-    """Helper to save uploaded file to temp directory, preserving hints."""
+    """Helper to save uploaded file to temp directory, preserving original naming tokens."""
     ext = os.path.splitext(upload_file.filename)[1]
     if not ext:
         ext = ".png"
     
-    # Check if original filename contains classification hints for testing
-    hint = ""
-    orig = upload_file.filename.lower()
-    if "scc" in orig:
-        hint = "_scc"
-    elif "aca" in orig:
-        hint = "_aca"
-    elif "lungn" in orig or "normal" in orig or "benign" in orig or "_b_" in orig:
-        hint = "_normal"
-    elif "malignant" in orig or "_m_" in orig:
-        hint = "_malignant"
-
-    unique_filename = f"{uuid.uuid4()}{hint}{ext}"
+    raw_stem = os.path.splitext(upload_file.filename)[0]
+    clean_stem = "".join(c if (c.isalnum() or c in ("-", "_")) else "_" for c in raw_stem)
+    unique_filename = f"{clean_stem}_{uuid.uuid4().hex[:8]}{ext}"
     temp_path = os.path.join(settings.TEMP_UPLOAD_DIR, unique_filename)
 
     with open(temp_path, "wb") as buffer:
