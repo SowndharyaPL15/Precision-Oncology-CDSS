@@ -30,7 +30,7 @@ export default function BreastPrediction() {
   const [result, setResult] = useState<any>(null);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
-  const [selectedModel, setSelectedModel] = useState<string>('densenet121');
+  const [selectedModel, setSelectedModel] = useState<string>('resnet50');
   const [zoomScale, setZoomScale] = useState(1);
   const [activeTab, setActiveTab] = useState<string>('overlay');
   const [heatmapOpacity, setHeatmapOpacity] = useState<number>(0.6);
@@ -69,7 +69,7 @@ export default function BreastPrediction() {
     'Uploading Image...',
     'Preprocessing & Normalizing...',
     'Extracting Deep Features...',
-    `Running Deep Inference (${selectedModel.toUpperCase()})...`,
+    'Running Deep Inference (ResNet50)...',
     'Generating Grad-CAM Heatmap...',
     'Compiling Clinical Report...',
     'Prediction Completed!'
@@ -626,10 +626,8 @@ export default function BreastPrediction() {
                         <Form.Label className="small fw-bold text-muted d-flex align-items-center">
                           <FaInfoCircle className="me-1 text-secondary" /> AI Model Architecture
                         </Form.Label>
-                        <Form.Select value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)} className="py-2">
-                          <option value="densenet121">DenseNet121 (Recommended — 97.9% SOTA Accuracy)</option>
-                          <option value="resnet50">ResNet50 (Primary Transfer Learning)</option>
-                          <option value="efficientnet">EfficientNetB0 (Lightweight CNN)</option>
+                        <Form.Select value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)} className="py-2" disabled>
+                          <option value="resnet50">ResNet50 (Primary Model)</option>
                         </Form.Select>
                       </Form.Group>
                     </Col>
@@ -1034,12 +1032,12 @@ export default function BreastPrediction() {
                               <FaInfoCircle className="me-2 text-primary" /> AI Model Information
                             </h6>
                             <div className="small text-muted">
-                              <div className="d-flex justify-content-between mb-1"><span>Architecture:</span><strong className="text-dark">{selectedModel === 'densenet121' ? 'DenseNet121 (Primary)' : 'ResNet50'}</strong></div>
+                              <div className="d-flex justify-content-between mb-1"><span>Architecture:</span><strong className="text-dark">ResNet50 (Primary)</strong></div>
                               <div className="d-flex justify-content-between mb-1"><span>Methodology:</span><strong className="text-dark">Transfer Learning</strong></div>
                               <div className="d-flex justify-content-between mb-1"><span>Validation:</span><strong className="text-dark">5-Fold Cross Val</strong></div>
                               <div className="d-flex justify-content-between mb-1"><span>Explainability:</span><strong className="text-dark">Grad-CAM (CNN)</strong></div>
-                              <div className="d-flex justify-content-between mb-1"><span>Training Acc:</span><strong className="text-dark">{selectedModel === 'densenet121' ? '97.9%' : '97.9%'}</strong></div>
-                              <div className="d-flex justify-content-between mb-1"><span>Validation Acc:</span><strong className="text-dark">{selectedModel === 'densenet121' ? '97.2%' : '97.2%'}</strong></div>
+                              <div className="d-flex justify-content-between mb-1"><span>Training Acc:</span><strong className="text-dark">97.9%</strong></div>
+                              <div className="d-flex justify-content-between mb-1"><span>Validation Acc:</span><strong className="text-dark">97.2%</strong></div>
                               <div className="d-flex justify-content-between"><span>Version:</span><strong className="text-dark">v1.2.0</strong></div>
                             </div>
                           </Card.Body>
@@ -1234,7 +1232,7 @@ export default function BreastPrediction() {
             </div>
 
             <div style={{ marginTop: '40px', display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#666' }}>
-              <div>Model: <strong>{selectedModel === 'densenet121' ? 'DenseNet121 (Primary)' : 'ResNet50'}</strong> | API Backend: FastAPI | Framework: TensorFlow</div>
+              <div>Model: <strong>ResNet50 (Primary)</strong> | API Backend: FastAPI | Framework: TensorFlow</div>
               <div style={{ textAlign: 'right', borderTop: '1px solid #ccc', width: '200px', paddingTop: '5px' }}>Authorized Pathologist Signature</div>
             </div>
 
