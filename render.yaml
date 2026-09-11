@@ -1,17 +1,15 @@
 services:
   - type: web
-    name: precision-oncology-cdss
+    name: precision-oncology-backend
     runtime: python
     plan: free
     autoDeploy: true
-    buildCommand: "./build.sh"
-    startCommand: "python ai-server/main.py"
+    buildCommand: "pip install --upgrade pip && pip install -r requirements.txt"
+    startCommand: "python main.py"
     healthCheckPath: "/api/v1/models"
     envVars:
       - key: PYTHON_VERSION
         value: 3.10.12
-      - key: NODE_VERSION
-        value: 20.x
       - key: PORT
         value: 10000
       - key: HOST
