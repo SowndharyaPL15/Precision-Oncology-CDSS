@@ -293,10 +293,12 @@ export default function BreastPrediction() {
         img.onerror = resolve;
       });
 
+      const isMalignant = report.prediction.predicted_class === 'malignant';
       setResult({
         reportId: reportDb.report_id,
         predictionId: reportDb.prediction_id,
-        class: report.prediction.predicted_class === 'malignant' ? 'Malignant (IDC)' : 'Benign',
+        class: isMalignant ? 'Malignant (IDC)' : 'Benign',
+        isMalignant: isMalignant,
         confidence: report.prediction.confidence * 100,
         probabilities: {
           malignant: (report.prediction.probabilities.malignant || 0) * 100,
@@ -305,9 +307,8 @@ export default function BreastPrediction() {
         gradcam: report.gradcam,
         recommendation: report.recommendation,
         riskScore: report.risk_score,
-        summary: report.diagnostic_summary || (report.prediction.predicted_class === 'malignant' 
-          ? 'Invasive Ductal Carcinoma (IDC) features identified. Deep convolutional layers highlight clusters of high cellular density, pleomorphic nuclei, and invasive margins.'
-          : 'Normal lobular structure and well-differentiated cells observed. No malignant features or abnormal density peaks identified by convolutional layers.'),
+        summary: report.diagnostic_summary,
+        followUpItems: report.follow_up_items,
         filename: image.name,
         resolution: `${img.width || 224} x ${img.height || 224} px`,
         fileSize: `${(image.size / 1024).toFixed(1)} KB`,
@@ -850,11 +851,19 @@ export default function BreastPrediction() {
                       </div>
                     )}
 
-                    {/* 2. Visual Analysis (Explainable AI - Tabs with zoom) */}
+                    {/* 2. Visual Analysis (Explainable AI / Histology Slide Inspection) */}
                     <div className="mb-4">
                       <div className="d-flex justify-content-between align-items-center mb-3">
                         <h6 className="fw-bold mb-0 text-dark d-flex align-items-center">
-                          <FaCheckCircle className="me-2 text-danger" style={{ color: '#d63384' }}/> Explainable AI (Grad-CAM Visualizations)
+                          {result.isMalignant ? (
+                            <>
+                              <FaCheckCircle className="me-2 text-danger" style={{ color: '#d63384' }}/> Explainable AI (Grad-CAM Visualizations)
+                            </>
+                          ) : (
+                            <>
+                              <FaCheckCircle className="me-2 text-success"/> Microscopic Slide Inspection (Benign Histology)
+                            </>
+                          )}
                         </h6>
                         <div className="d-flex gap-2">
                           <Button size="sm" variant="outline-secondary" onClick={() => setZoomScale(s => Math.max(0.5, s - 0.25))}><FaUndo style={{ transform: 'rotate(-90deg)' }} /></Button>
@@ -863,45 +872,25 @@ export default function BreastPrediction() {
                         </div>
                       </div>
 
-                      <div className="border rounded-4 bg-dark overflow-hidden p-3 position-relative d-flex flex-column align-items-center justify-content-center" style={{ minHeight: '360px' }}>
-                        {/* Custom Dark Tab Switcher */}
-                        <div className="d-flex justify-content-center gap-2 mb-4 bg-black bg-opacity-40 p-1.5 rounded-3 border border-secondary border-opacity-25" style={{ maxWidth: '440px', width: '100%' }}>
-                          <button 
-                            type="button"
-                            onClick={() => setActiveTab('original')} 
-                            className={`btn btn-sm px-3 py-1.5 rounded-2 fw-semibold transition-all border-0 ${activeTab === 'original' ? 'btn-info text-dark shadow-sm' : 'text-light bg-transparent opacity-50 hover-opacity-100'}`}
-                            style={{ flex: 1 }}
-                          >
-                            <FaImage className="me-1" /> Original Slide
-                          </button>
-                          <button 
-                            type="button"
-                            onClick={() => setActiveTab('heatmap')} 
-                            className={`btn btn-sm px-3 py-1.5 rounded-2 fw-semibold transition-all border-0 ${activeTab === 'heatmap' ? 'btn-info text-dark shadow-sm' : 'text-light bg-transparent opacity-50 hover-opacity-100'}`}
-                            style={{ flex: 1 }}
-                          >
-                            <FaThermometerHalf className="me-1" /> Heatmap
-                          </button>
-                          <button 
-                            type="button"
-                            onClick={() => setActiveTab('overlay')} 
-                            className={`btn btn-sm px-3 py-1.5 rounded-2 fw-semibold transition-all border-0 ${activeTab === 'overlay' ? 'btn-info text-dark shadow-sm' : 'text-light bg-transparent opacity-50 hover-opacity-100'}`}
-                            style={{ flex: 1 }}
-                          >
-                            <FaSearchPlus className="me-1" /> Overlay
-                          </button>
-                        </div>
+                      {!result.isMalignant ? (
+                        /* Benign: Show ONLY original image with clean verification banner */
+                        <div className="border rounded-4 bg-dark overflow-hidden p-4 position-relative d-flex flex-column align-items-center justify-content-center" style={{ minHeight: '340px' }}>
+                          <div className="alert alert-success bg-opacity-10 border-success border-opacity-25 text-white d-flex align-items-center justify-content-center py-2 px-3 mb-3 rounded-3 w-100" style={{ maxWidth: '600px' }}>
+                            <FaCheckCircle className="me-2 text-success fs-5 flex-shrink-0" />
+                            <div className="text-start">
+                              <strong className="d-block text-success">✓ Benign Tissue Architecture Confirmed</strong>
+                              <small className="text-white-50">No neoplastic or invasive lesion localized. Displaying original microscopic biopsy slide.</small>
+                            </div>
+                          </div>
 
-                        {/* Custom Tab Contents */}
-                        <div className="overflow-auto text-center w-100 d-flex justify-content-center align-items-center" style={{ minHeight: '260px', maxHeight: '300px' }}>
-                          {activeTab === 'original' && (
+                          <div className="overflow-auto text-center w-100 d-flex justify-content-center align-items-center" style={{ minHeight: '260px', maxHeight: '340px' }}>
                             <img 
                               src={getMediaUrl(result.gradcam?.original_path) || preview} 
-                              alt="Original Pathological Image" 
+                              alt="Original Benign Histopathology Slide" 
                               style={{ 
                                 transform: `scale(${zoomScale})`, 
                                 transition: 'transform 0.2s', 
-                                maxHeight: '250px', 
+                                maxHeight: '280px', 
                                 maxWidth: '100%',
                                 objectFit: 'contain', 
                                 display: 'block',
@@ -912,116 +901,173 @@ export default function BreastPrediction() {
                                 e.target.src = preview || 'https://via.placeholder.com/400x400/eeeeee/333333?text=Original+Scan';
                               }}
                             />
-                          )}
-                          {activeTab === 'heatmap' && (
-                            <img 
-                              src={getMediaUrl(result.gradcam?.heatmap_path)} 
-                              alt="Grad-CAM Heatmap" 
-                              style={{ 
-                                transform: `scale(${zoomScale})`, 
-                                transition: 'transform 0.2s', 
-                                maxHeight: '250px', 
-                                maxWidth: '100%',
-                                objectFit: 'contain', 
-                                display: 'block',
-                                margin: '0 auto' 
-                              }}
-                              className="rounded shadow"
-                              onError={(e: any) => {
-                                e.target.src = 'https://via.placeholder.com/400x400/d63384/ffffff?text=Heatmap+Not+Generated';
-                              }}
-                            />
-                          )}
-                          {activeTab === 'overlay' && (
-                            <div 
-                              className="position-relative d-inline-block rounded overflow-hidden shadow" 
-                              style={{ 
-                                maxHeight: '250px', 
-                                transform: `scale(${zoomScale})`, 
-                                transition: 'transform 0.2s',
-                                lineHeight: 0,
-                                margin: '0 auto'
-                              }}
+                          </div>
+                          <div className="text-white-50 text-center small mt-3">
+                            * Full-field original microscopic histology scan. Unaltered biological cellular morphology.
+                          </div>
+                        </div>
+                      ) : (
+                        /* Malignant: Show interactive Grad-CAM heatmap tabs & overlay */
+                        <div className="border rounded-4 bg-dark overflow-hidden p-3 position-relative d-flex flex-column align-items-center justify-content-center" style={{ minHeight: '360px' }}>
+                          {/* Custom Dark Tab Switcher */}
+                          <div className="d-flex justify-content-center gap-2 mb-4 bg-black bg-opacity-40 p-1.5 rounded-3 border border-secondary border-opacity-25" style={{ maxWidth: '440px', width: '100%' }}>
+                            <button 
+                              type="button"
+                              onClick={() => setActiveTab('original')} 
+                              className={`btn btn-sm px-3 py-1.5 rounded-2 fw-semibold transition-all border-0 ${activeTab === 'original' ? 'btn-info text-dark shadow-sm' : 'text-light bg-transparent opacity-50 hover-opacity-100'}`}
+                              style={{ flex: 1 }}
                             >
+                              <FaImage className="me-1" /> Original Slide
+                            </button>
+                            <button 
+                              type="button"
+                              onClick={() => setActiveTab('heatmap')} 
+                              className={`btn btn-sm px-3 py-1.5 rounded-2 fw-semibold transition-all border-0 ${activeTab === 'heatmap' ? 'btn-info text-dark shadow-sm' : 'text-light bg-transparent opacity-50 hover-opacity-100'}`}
+                              style={{ flex: 1 }}
+                            >
+                              <FaThermometerHalf className="me-1" /> Heatmap
+                            </button>
+                            <button 
+                              type="button"
+                              onClick={() => setActiveTab('overlay')} 
+                              className={`btn btn-sm px-3 py-1.5 rounded-2 fw-semibold transition-all border-0 ${activeTab === 'overlay' ? 'btn-info text-dark shadow-sm' : 'text-light bg-transparent opacity-50 hover-opacity-100'}`}
+                              style={{ flex: 1 }}
+                            >
+                              <FaSearchPlus className="me-1" /> Overlay
+                            </button>
+                          </div>
+
+                          {/* Custom Tab Contents */}
+                          <div className="overflow-auto text-center w-100 d-flex justify-content-center align-items-center" style={{ minHeight: '260px', maxHeight: '300px' }}>
+                            {activeTab === 'original' && (
                               <img 
                                 src={getMediaUrl(result.gradcam?.original_path) || preview} 
                                 alt="Original Pathological Image" 
                                 style={{ 
+                                  transform: `scale(${zoomScale})`, 
+                                  transition: 'transform 0.2s', 
                                   maxHeight: '250px', 
-                                  maxWidth: '100%', 
-                                  display: 'block', 
-                                  objectFit: 'contain' 
+                                  maxWidth: '100%',
+                                  objectFit: 'contain', 
+                                  display: 'block',
+                                  margin: '0 auto' 
                                 }}
+                                className="rounded shadow"
                                 onError={(e: any) => {
                                   e.target.src = preview || 'https://via.placeholder.com/400x400/eeeeee/333333?text=Original+Scan';
                                 }}
                               />
+                            )}
+                            {activeTab === 'heatmap' && (
                               <img 
                                 src={getMediaUrl(result.gradcam?.heatmap_path)} 
                                 alt="Grad-CAM Heatmap" 
                                 style={{ 
-                                  position: 'absolute', 
-                                  top: 0, 
-                                  left: 0, 
-                                  width: '100%', 
-                                  height: '100%', 
-                                  objectFit: 'fill',
-                                  opacity: heatmapOpacity,
-                                  mixBlendMode: blendMode as any,
+                                  transform: `scale(${zoomScale})`, 
+                                  transition: 'transform 0.2s', 
+                                  maxHeight: '250px', 
+                                  maxWidth: '100%',
+                                  objectFit: 'contain', 
                                   display: 'block',
-                                  pointerEvents: 'none'
+                                  margin: '0 auto' 
                                 }}
+                                className="rounded shadow"
                                 onError={(e: any) => {
-                                  e.target.style.display = 'none';
+                                  e.target.src = 'https://via.placeholder.com/400x400/d63384/ffffff?text=Heatmap+Not+Generated';
                                 }}
                               />
+                            )}
+                            {activeTab === 'overlay' && (
+                              <div 
+                                className="position-relative d-inline-block rounded overflow-hidden shadow" 
+                                style={{ 
+                                  maxHeight: '250px', 
+                                  transform: `scale(${zoomScale})`, 
+                                  transition: 'transform 0.2s',
+                                  lineHeight: 0,
+                                  margin: '0 auto'
+                                }}
+                              >
+                                <img 
+                                  src={getMediaUrl(result.gradcam?.original_path) || preview} 
+                                  alt="Original Pathological Image" 
+                                  style={{ 
+                                    maxHeight: '250px', 
+                                    maxWidth: '100%', 
+                                    display: 'block', 
+                                    objectFit: 'contain' 
+                                  }}
+                                  onError={(e: any) => {
+                                    e.target.src = preview || 'https://via.placeholder.com/400x400/eeeeee/333333?text=Original+Scan';
+                                  }}
+                                />
+                                <img 
+                                  src={getMediaUrl(result.gradcam?.heatmap_path)} 
+                                  alt="Grad-CAM Heatmap" 
+                                  style={{ 
+                                    position: 'absolute', 
+                                    top: 0, 
+                                    left: 0, 
+                                    width: '100%', 
+                                    height: '100%', 
+                                    objectFit: 'fill',
+                                    opacity: heatmapOpacity,
+                                    mixBlendMode: blendMode as any,
+                                    display: 'block',
+                                    pointerEvents: 'none'
+                                  }}
+                                  onError={(e: any) => {
+                                    e.target.style.display = 'none';
+                                  }}
+                                />
+                              </div>
+                            )}
+                          </div>
+                          
+                          {activeTab === 'overlay' && (
+                            <div className="w-100 mt-2 px-3 py-2 bg-dark bg-opacity-25 rounded border border-secondary text-white small">
+                              <Row className="align-items-center g-2">
+                                <Col xs={12} sm={6}>
+                                  <div className="d-flex align-items-center gap-2">
+                                    <span className="text-white-50 text-nowrap">Heatmap Opacity:</span>
+                                    <Form.Range 
+                                      min={0.1} 
+                                      max={1.0} 
+                                      step={0.1} 
+                                      value={heatmapOpacity} 
+                                      onChange={(e) => setHeatmapOpacity(parseFloat(e.target.value))} 
+                                      className="align-self-center mt-1"
+                                    />
+                                    <span className="fw-bold" style={{ width: '40px' }}>{Math.round(heatmapOpacity * 100)}%</span>
+                                  </div>
+                                </Col>
+                                <Col xs={12} sm={6}>
+                                  <div className="d-flex align-items-center justify-content-sm-end gap-2">
+                                    <span className="text-white-50 text-nowrap">Blend Mode:</span>
+                                    <Form.Select 
+                                      size="sm" 
+                                      value={blendMode} 
+                                      onChange={(e) => setBlendMode(e.target.value)} 
+                                      className="bg-dark text-white border-secondary py-0 px-2"
+                                      style={{ width: '120px', height: '28px' }}
+                                    >
+                                      <option value="normal">Normal</option>
+                                      <option value="multiply">Multiply</option>
+                                      <option value="screen">Screen</option>
+                                      <option value="overlay">Overlay</option>
+                                      <option value="color-burn">Color Burn</option>
+                                    </Form.Select>
+                                  </div>
+                                </Col>
+                              </Row>
                             </div>
                           )}
-                        </div>
-                        
-                        {activeTab === 'overlay' && (
-                          <div className="w-100 mt-2 px-3 py-2 bg-dark bg-opacity-25 rounded border border-secondary text-white small">
-                            <Row className="align-items-center g-2">
-                              <Col xs={12} sm={6}>
-                                <div className="d-flex align-items-center gap-2">
-                                  <span className="text-white-50 text-nowrap">Heatmap Opacity:</span>
-                                  <Form.Range 
-                                    min={0.1} 
-                                    max={1.0} 
-                                    step={0.1} 
-                                    value={heatmapOpacity} 
-                                    onChange={(e) => setHeatmapOpacity(parseFloat(e.target.value))} 
-                                    className="align-self-center mt-1"
-                                  />
-                                  <span className="fw-bold" style={{ width: '40px' }}>{Math.round(heatmapOpacity * 100)}%</span>
-                                </div>
-                              </Col>
-                              <Col xs={12} sm={6}>
-                                <div className="d-flex align-items-center justify-content-sm-end gap-2">
-                                  <span className="text-white-50 text-nowrap">Blend Mode:</span>
-                                  <Form.Select 
-                                    size="sm" 
-                                    value={blendMode} 
-                                    onChange={(e) => setBlendMode(e.target.value)} 
-                                    className="bg-dark text-white border-secondary py-0 px-2"
-                                    style={{ width: '120px', height: '28px' }}
-                                  >
-                                    <option value="normal">Normal</option>
-                                    <option value="multiply">Multiply</option>
-                                    <option value="screen">Screen</option>
-                                    <option value="overlay">Overlay</option>
-                                    <option value="color-burn">Color Burn</option>
-                                  </Form.Select>
-                                </div>
-                              </Col>
-                            </Row>
+                          
+                          <div className="text-white-50 text-center small mt-2">
+                            * Heatmap highlights deep features that contributed most heavily to the classification. Use opacity and blend controls to isolate core cell regions.
                           </div>
-                        )}
-                        
-                        <div className="text-white-50 text-center small mt-2">
-                          * Heatmap highlights deep features that contributed most heavily to the classification. Use opacity and blend controls to isolate core cell regions.
                         </div>
-                      </div>
+                      )}
                     </div>
 
                     {/* Model Info and Image Info Side-by-Side */}
@@ -1068,23 +1114,40 @@ export default function BreastPrediction() {
                         <strong>Histopathology Findings:</strong> {result.summary}
                       </div>
                       <div className="small text-dark mb-2">
-                        <strong>Model Explanation:</strong> Grad-CAM highlights specific cellular regions corresponding to deep-learning features of pleomorphic nuclei.
+                        <strong>Model Explanation:</strong> {result.isMalignant ? 'Grad-CAM highlights specific cellular clusters corresponding to pleomorphic nuclei and invasive tumor architecture.' : 'Cellular morphology indicates well-differentiated, uniform, non-invasive tissue structures.'}
                       </div>
                       <div className="small text-dark">
-                        <strong>Clinical Action Required:</strong> {result.recommendation}
+                        <strong>Clinical Recommendation:</strong> {result.recommendation}
                       </div>
                     </div>
 
                     {/* 4. Follow-up section */}
-                    <div className="mb-4 p-3 bg-warning bg-opacity-10 rounded-4 border-start border-4 border-warning">
-                      <h6 className="fw-bold mb-2 text-warning-emphasis d-flex align-items-center">
-                        <FaExclamationTriangle className="me-2"/> Suggested Follow-up Diagnostics
+                    <div className={`mb-4 p-3 rounded-4 border-start border-4 ${result.isMalignant ? 'bg-danger bg-opacity-10 border-danger' : 'bg-success bg-opacity-10 border-success'}`}>
+                      <h6 className={`fw-bold mb-2 d-flex align-items-center ${result.isMalignant ? 'text-danger' : 'text-success'}`}>
+                        {result.isMalignant ? <FaExclamationTriangle className="me-2"/> : <FaCheckCircle className="me-2"/>} 
+                        Suggested Follow-up Diagnostics & Care Pathway
                       </h6>
                       <ul className="small mb-0 ps-3 text-dark fw-semibold">
-                        <li>Consult Surgical Oncologist within 48 hours.</li>
-                        <li>Recommend Core Needle Biopsy for definitive pathological grading.</li>
-                        <li>Immunohistochemistry (IHC) panel for ER/PR and HER2/neu receptors.</li>
-                        <li>Complete diagnostic staging and clinical correlation.</li>
+                        {result.followUpItems && result.followUpItems.length > 0 ? (
+                          result.followUpItems.map((item: string, idx: number) => (
+                            <li key={idx} className="mb-1">{item}</li>
+                          ))
+                        ) : (
+                          result.isMalignant ? (
+                            <>
+                              <li>Consult Surgical Oncologist within 48 hours.</li>
+                              <li>Order Core Needle Biopsy for definitive pathological grading.</li>
+                              <li>Reflex IHC panel for ER/PR and HER2/neu receptors.</li>
+                              <li>Complete diagnostic staging and clinical correlation.</li>
+                            </>
+                          ) : (
+                            <>
+                              <li>Routine clinical breast examination in 6–12 months.</li>
+                              <li>Targeted diagnostic ultrasound correlation for BI-RADS verification.</li>
+                              <li>Monthly breast self-awareness and routine surveillance.</li>
+                            </>
+                          )
+                        )}
                       </ul>
                     </div>
 
@@ -1196,17 +1259,31 @@ export default function BreastPrediction() {
               </div>
             </div>
 
-            <h3 style={{ borderBottom: '1px solid #ddd', paddingBottom: '5px', color: '#444' }}>Explainable AI (Grad-CAM Visualizations)</h3>
-            <div style={{ display: 'flex', justifyContent: 'space-around', gap: '20px', marginBottom: '20px', textAlign: 'center' }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '5px' }}>Original Histopathology Slide</div>
-                <img src={preview || ''} alt="Original Histopathology Slide" style={{ width: '100%', maxHeight: '180px', objectFit: 'contain', border: '1px solid #ccc', borderRadius: '5px' }} />
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '5px' }}>CNN Diagnostic Overlay</div>
-                <img src={getMediaUrl(result.gradcam?.overlay_path)} crossOrigin="anonymous" alt="Overlay" style={{ width: '100%', maxHeight: '180px', objectFit: 'contain', border: '1px solid #ccc', borderRadius: '5px' }} />
-              </div>
-            </div>
+            {/* Explainable AI Visual Analysis in PDF */}
+            {result.isMalignant ? (
+              <>
+                <h3 style={{ borderBottom: '1px solid #ddd', paddingBottom: '5px', color: '#444' }}>Explainable AI (Grad-CAM Visualizations)</h3>
+                <div style={{ display: 'flex', justifyContent: 'space-around', gap: '20px', marginBottom: '20px', textAlign: 'center' }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '5px' }}>Original Histopathology Slide</div>
+                    <img src={preview || ''} alt="Original Histopathology Slide" style={{ width: '100%', maxHeight: '180px', objectFit: 'contain', border: '1px solid #ccc', borderRadius: '5px' }} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '5px' }}>CNN Diagnostic Overlay</div>
+                    <img src={getMediaUrl(result.gradcam?.overlay_path)} crossOrigin="anonymous" alt="Overlay" style={{ width: '100%', maxHeight: '180px', objectFit: 'contain', border: '1px solid #ccc', borderRadius: '5px' }} />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3 style={{ borderBottom: '1px solid #ddd', paddingBottom: '5px', color: '#444' }}>Histopathological Slide Inspection (Benign Parenchyma)</h3>
+                <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '5px' }}>Full-Field Microscopic Biopsy Slide</div>
+                  <img src={preview || ''} alt="Original Benign Histopathology Slide" style={{ maxWidth: '340px', maxHeight: '200px', objectFit: 'contain', border: '1px solid #ccc', borderRadius: '5px' }} />
+                  <div style={{ fontSize: '11px', color: '#666', marginTop: '5px' }}>* Non-malignant tissue architecture verified. Grad-CAM heatmap visualization is suppressed for benign findings.</div>
+                </div>
+              </>
+            )}
 
             {/* Multimodal Risk Score section in PDF */}
             {result.riskScore && (

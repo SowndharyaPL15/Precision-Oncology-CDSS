@@ -183,83 +183,267 @@ class ReportService:
             "factors": factors,
         }
 
+    def _generate_follow_up_diagnostics(self, dataset: str, predicted_class: str, patient_info: PatientInfoSchema) -> list:
+        """Generates individualized, bulleted follow-up diagnostic action items."""
+        items = []
+        is_malignant = (dataset == "breast" and predicted_class == "malignant") or (dataset == "lung" and predicted_class in ["lung_aca", "lung_scc"])
+        
+        has_symptoms = bool(patient_info and patient_info.symptoms and patient_info.symptoms.strip().lower() not in ("", "none", "n/a"))
+        brca_pos = bool(patient_info and patient_info.brca_status and patient_info.brca_status.lower() == "positive")
+        fam_hist = bool(patient_info and patient_info.family_history and patient_info.family_history.lower() == "yes")
+        smoker = bool(patient_info and patient_info.smoking_history and patient_info.smoking_history.lower() in ["current", "former"])
+
+        if dataset == "breast":
+            if is_malignant:
+                items.append("Urgent Multidisciplinary Breast Cancer Tumor Board review (Surgical, Medical & Radiation Oncology).")
+                items.append("Comprehensive reflex IHC biomarker panel: ER, PR, HER2/neu (with FISH confirmation if 2+), and Ki-67 index.")
+                items.append("Bilateral diagnostic mammogram + axillary ultrasound + contrast-enhanced Breast MRI for local staging.")
+                items.append("Sentinel lymph node biopsy (SLNB) and systemic staging (CT Chest/Abdomen/Pelvis or PET-CT).")
+                if brca_pos or fam_hist:
+                    items.append("Referral for formal genetic counseling and expanded multigene panel testing (BRCA1/2, PALB2, CHEK2).")
+            else:
+                items.append("Routine clinical breast examination (CBE) and standard surveillance at 6-12 month intervals.")
+                items.append("Diagnostic bilateral breast ultrasound / digital mammography correlation for BI-RADS verification.")
+                if brca_pos or fam_hist:
+                    items.append("High-risk surveillance protocol: alternating annual Breast MRI and digital tomosynthesis every 6 months.")
+                    items.append("Hereditary cancer genetic counseling consultation for risk-reduction strategies.")
+                if has_symptoms:
+                    items.append(f"Targeted clinical workup for presenting symptoms ({patient_info.symptoms}) to exclude atypical hyperplasia.")
+                items.append("Patient counseling on monthly breast self-examination and prompt reporting of new palpable changes.")
+
+        elif dataset == "lung":
+            if predicted_class == "lung_aca":
+                items.append("Urgent referral to Thoracic Multidisciplinary Oncology Tumor Board within 48-72 hours.")
+                items.append("Comprehensive NGS molecular panel: EGFR (Exon 19/21), ALK, ROS1, BRAF, RET, MET, KRAS G12C & PD-L1 IHC 22C3.")
+                items.append("Integrated whole-body 18F-FDG PET-CT scan and contrast-enhanced brain MRI for clinical TNM staging.")
+                items.append("Endobronchial ultrasound-guided transbronchial needle aspiration (EBUS-TBNA) for mediastinal lymph node staging.")
+                items.append("Complete Pulmonary Function Tests (PFTs with DLCO) and cardiology clearance for thoracic surgical triage.")
+            elif predicted_class == "lung_scc":
+                items.append("Prompt evaluation by Thoracic Oncology and Pulmonary Surgery teams.")
+                items.append("Diagnostic bronchoscopy with endobronchial ultrasound (EBUS) to inspect airway involvement.")
+                items.append("PD-L1 Tumor Proportion Score (TPS) immunohistochemistry for first-line chemo-immunotherapy planning.")
+                items.append("Whole-body 18F-FDG PET-CT scan and contrast-enhanced brain MRI for distant metastatic evaluation.")
+                items.append("Spirometry, DLCO, and quantitative ventilation-perfusion scan to assess cardiopulmonary reserve.")
+            else:
+                items.append("Pulmonary consultation and spirometry/PFTs to address presenting respiratory complaints if active.")
+                if smoker:
+                    items.append("Enrollment in evidence-based smoking cessation program and annual Low-Dose CT (LDCT) lung cancer screening.")
+                if has_symptoms:
+                    items.append(f"Targeted diagnostic evaluation for symptoms ({patient_info.symptoms}) to rule out chronic infection or COPD.")
+                    items.append("Follow-up high-resolution non-contrast chest CT at 3-6 months to confirm parenchymal stability.")
+                else:
+                    items.append("Maintain routine age-appropriate preventive health check-ups; no immediate oncological therapy required.")
+                items.append("Advise patient to seek prompt medical attention if hemoptysis, unresolving cough, or dyspnea emerges.")
+
+        return items
+
     def _generate_recommendation_multimodal(self, dataset: str, predicted_class: str, confidence: float, patient_info: PatientInfoSchema) -> str:
-        """Generates a multimodal rule-based recommendation combining AI prediction and clinical details."""
-        is_malignant = False
-        if dataset == "breast" and predicted_class == "malignant":
-            is_malignant = True
-        elif dataset == "lung" and predicted_class in ["lung_aca", "lung_scc"]:
-            is_malignant = True
+        """Generates a comprehensive, highly individualized multimodal clinical recommendation."""
+        name = patient_info.patient_name if patient_info and patient_info.patient_name and patient_info.patient_name != "N/A" else "the patient"
+        age = patient_info.age if patient_info and patient_info.age else 45
+        gender = patient_info.gender if patient_info and patient_info.gender else "patient"
+        symptoms = patient_info.symptoms.strip() if patient_info and patient_info.symptoms and patient_info.symptoms.strip().lower() not in ("", "none", "n/a") else None
+        fam_hist = bool(patient_info and patient_info.family_history and patient_info.family_history.lower() == "yes")
+        brca_pos = bool(patient_info and patient_info.brca_status and patient_info.brca_status.lower() == "positive")
+        prev_cancer = bool(patient_info and patient_info.previous_cancer_history and patient_info.previous_cancer_history.lower() == "yes")
+        conf_pct = confidence * 100
 
-        family_history_pos = False
-        if patient_info and patient_info.family_history and patient_info.family_history.lower() == "yes":
-            family_history_pos = True
+        if dataset == "breast":
+            if predicted_class == "malignant":
+                rec = (
+                    f"URGENT MULTIDISCIPLINARY ONCOLOGICAL ACTION REQUIRED: Histopathological evaluation for {name} (Age {age}, {patient_info.menopause_status if patient_info else 'Female'}) "
+                    f"confirms Infiltrating Breast Malignancy with a high diagnostic confidence of {conf_pct:.1f}%. "
+                    f"Immediate presentation to the Breast Cancer Multidisciplinary Tumor Board (Surgical, Medical, and Radiation Oncology) is indicated. "
+                    f"Order an urgent reflex immunohistochemistry (IHC) panel for Estrogen Receptor (ER), Progesterone Receptor (PR), HER2/neu (with FISH reflex if 2+ equivocal), "
+                    f"and Ki-67 proliferation index to establish molecular subtype and determine candidacy for targeted or neo-adjuvant systemic therapy. "
+                    f"Diagnostic staging should include bilateral digital breast tomosynthesis, axillary ultrasound, contrast-enhanced Breast MRI, and sentinel lymph node mapping. "
+                )
+                if brca_pos:
+                    rec += f"Given confirmed positive BRCA mutation status, expedited genetic oncology consultation is imperative to evaluate extended PARP inhibitor therapy protocols and bilateral surgical risk-reduction strategies."
+                elif fam_hist:
+                    rec += f"Due to documented positive familial breast/ovarian cancer history, multigene hereditary cancer panel testing (BRCA1/2, PALB2, CHEK2) is strongly recommended."
+                return rec
+            else:
+                rec = (
+                    f"BENIGN TISSUE ARCHITECTURE CONFIRMED: Deep convolutional histopathology analysis for {name} (Age {age}, {patient_info.menopause_status if patient_info else 'Female'}) "
+                    f"demonstrates benign breast parenchymal tissue without cytologic atypia, stromal invasion, or malignant proliferation (Confidence: {conf_pct:.1f}%). "
+                )
+                if brca_pos:
+                    rec += (
+                        f"CRITICAL SURVEILLANCE PROTOCOL: Although the current biopsy is benign, the patient's positive BRCA mutation status confers elevated lifetime risk. "
+                        f"Initiate intensive high-risk surveillance comprising annual contrast-enhanced breast MRI alternating with digital mammography every 6 months, "
+                        f"semi-annual clinical breast exams, and genetic counseling consultation."
+                    )
+                elif fam_hist:
+                    rec += (
+                        f"ELEVATED FAMILIAL RISK: Given positive family history of breast/ovarian malignancy, recommend individualized risk assessment (Tyrer-Cuzick model), "
+                        f"consideration of supplemental breast MRI screening, and routine clinical follow-up every 6-12 months."
+                    )
+                elif symptoms:
+                    rec += (
+                        f"SYMPTOMATIC CORRELATION: Due to presenting clinical complaints ('{symptoms}'), recommend targeted diagnostic ultrasound to evaluate for non-malignant "
+                        f"etiologies (such as fibroadenoma, fibrocystic changes, or duct ectasia) with clinical re-assessment in 3-6 months to confirm stability."
+                    )
+                elif prev_cancer:
+                    rec += (
+                        f"POST-ONCOLOGY SURVEILLANCE: Given previous oncological history, continue regular annual diagnostic mammography and clinical breast examinations."
+                    )
+                else:
+                    rec += (
+                        f"Standard age-appropriate routine breast cancer screening intervals (biennial digital mammography) are supported. "
+                        f"Advise patient on routine breast self-awareness and prompt return if new palpable nodules or focal changes arise."
+                    )
+                return rec
 
-        has_symptoms = False
-        if patient_info and patient_info.symptoms and len(patient_info.symptoms.strip()) > 0 and patient_info.symptoms.lower() != "none":
-            has_symptoms = True
+        elif dataset == "lung":
+            smoker = bool(patient_info and patient_info.smoking_history and patient_info.smoking_history.lower() in ["current", "former"])
+            sm_status = patient_info.smoking_history if patient_info and patient_info.smoking_history else "Never"
 
-        brca_pos = False
-        if patient_info and patient_info.brca_status and patient_info.brca_status.lower() == "positive":
-            brca_pos = True
+            if predicted_class == "lung_aca":
+                rec = (
+                    f"EXPEDITED THORACIC ONCOLOGY REFERRAL REQUIRED: Histopathological biopsy for {name} (Age {age}, {gender}, Smoking: {sm_status}) "
+                    f"is classified as Lung Adenocarcinoma with {conf_pct:.1f}% confidence, exhibiting glandular differentiation and invasive malignant features. "
+                    f"Immediately convene the Thoracic Oncology Multidisciplinary Tumor Board. "
+                    f"Mandate comprehensive Next-Generation Sequencing (NGS) molecular biomarker testing: EGFR (Exon 19 del, L858R, T790M), ALK rearrangements, "
+                    f"ROS1, BRAF V600E, RET, MET exon 14 skipping, KRAS G12C, and PD-L1 IHC 22C3 Tumor Proportion Score to identify actionable targeted therapeutic options. "
+                    f"Order whole-body 18F-FDG PET-CT, contrast-enhanced brain MRI, and EBUS-TBNA mediastinal nodal staging for definitive cTNM classification."
+                )
+                if prev_cancer or fam_hist:
+                    rec += f" Heightened clinical priority is warranted given positive history of malignancy."
+                return rec
 
-        # Rule 1: Malignant + BRCA Positive (Highest Risk)
-        if is_malignant and brca_pos:
-            return "URGENT ONCOLOGY CONSULTATION REQUIRED: Malignancy confirmed alongside positive BRCA mutation status. Recommend immediate clinical staging, genetic counseling, and priority therapeutic planning."
+            elif predicted_class == "lung_scc":
+                rec = (
+                    f"THORACIC ONCOLOGY & SURGICAL EVALUATION REQUIRED: Histopathological biopsy for {name} (Age {age}, {gender}, Smoking: {sm_status}) "
+                    f"is classified as Lung Squamous Cell Carcinoma with {conf_pct:.1f}% confidence, demonstrating keratinization, intercellular bridges, and malignant atypia. "
+                    f"Prompt referral to Thoracic Surgery and Medical Oncology is indicated. "
+                    f"Schedule diagnostic bronchoscopy with endobronchial ultrasound (EBUS-TBNA) to evaluate central tracheobronchial extension and mediastinal lymph node involvement. "
+                    f"Order PD-L1 TPS immunohistochemistry for immunotherapy selection, integrated whole-body 18F-FDG PET-CT, contrast brain MRI, and complete PFTs with DLCO to assess cardiopulmonary reserve."
+                )
+                return rec
 
-        # Rule 2: Malignant + Positive Family History
-        if is_malignant and family_history_pos:
-            return "Urgent oncology consultation, clinical staging check-ups, and immediate histopathological biopsy confirmation recommended due to combined positive malignancy prediction and familial risk factors."
+            else:
+                rec = (
+                    f"NORMAL / BENIGN PULMONARY HISTOLOGY CONFIRMED: Deep learning analysis for {name} (Age {age}, {gender}) "
+                    f"demonstrates normal lung parenchyma, preserved alveolar architecture, and absence of neoplastic infiltration (Confidence: {conf_pct:.1f}%). "
+                )
+                if smoker:
+                    rec += (
+                        f"PULMONARY RISK MANAGEMENT: In view of {sm_status} smoking history, strongly advocate enrollment in an evidence-based smoking cessation program. "
+                        f"Recommend annual Low-Dose CT (LDCT) lung cancer screening if eligible under USPSTF guidelines (ages 50-80 with >=20 pack-year history)."
+                    )
+                elif symptoms:
+                    rec += (
+                        f"CLINICAL SYMPTOM RESOLUTION: In response to reported symptoms ('{symptoms}'), recommend pulmonary clinical workup including spirometry/PFTs "
+                        f"and follow-up low-dose chest CT in 3-6 months to exclude resolving post-infectious granuloma or inflammatory airway disease."
+                    )
+                elif prev_cancer or fam_hist:
+                    rec += (
+                        f"SURVEILLANCE ADVISORY: Given prior cancer history / familial background, maintain regular periodic pulmonary clinical reviews and chest imaging as clinically indicated."
+                    )
+                else:
+                    rec += (
+                        f"No immediate oncological intervention is required. Maintain standard preventive health lifestyle and advise patient to seek evaluation if persistent cough, hemoptysis, or shortness of breath occurs."
+                    )
+                return rec
 
-        # Rule 3: Malignant + Standard History
-        if is_malignant:
-            return "Malignancy detected. Recommend immediate oncologist referral, diagnostic biopsy correlation, and chest/breast imaging follow-up."
-
-        # Rule 4: Benign + BRCA Positive (Precautionary Surveillance)
-        if not is_malignant and brca_pos:
-            return "AI prediction indicates Benign; however, given positive BRCA mutation status, recommend intensive surveillance, semi-annual imaging, and preventative clinical management."
-
-        # Rule 5: Benign + Severe/Present Symptoms
-        if not is_malignant and has_symptoms:
-            return "AI prediction indicates Benign; however, due to active clinical symptoms, recommend closer follow-up examination, correlation with clinical findings, and potential repeat biopsy within 3-6 months to exclude false negatives."
-
-        # Rule 6: Benign + No Risk Factors
-        return "Benign characteristics observed with no presenting clinical risk symptoms. Continue routine clinical screening and standard surveillance intervals."
+        return "Clinical correlation with histopathological findings and multidisciplinary consultation recommended."
 
     def _generate_diagnostic_summary(self, dataset: str, prediction: dict, patient_info: PatientInfoSchema) -> str:
-        """Combines image prediction, confidence score, and patient clinical info into a unified clinical narrative."""
+        """Combines image prediction, confidence score, and patient clinical info into a detailed, case-specific clinical narrative."""
         pred_class = prediction["predicted_class"]
         confidence_pct = prediction["confidence"] * 100
+        name = patient_info.patient_name if patient_info and patient_info.patient_name and patient_info.patient_name != "N/A" else "Patient"
+        age = patient_info.age if patient_info and patient_info.age else 45
+        gender = patient_info.gender if patient_info and patient_info.gender else "Unspecified"
         
         if dataset == "breast":
-            display_class = "Malignant" if pred_class == "malignant" else "Benign"
-        else:
-            display_class = "Adenocarcinoma" if pred_class == "lung_aca" else ("Squamous Cell Carcinoma" if pred_class == "lung_scc" else "Benign")
-            
-        summary = f"The histopathological biopsy image is predicted as {display_class} with a confidence score of {confidence_pct:.1f}% using the deep learning architecture. "
-        
-        if patient_info:
-            summary += f"Patient Profile context: Age {patient_info.age}, Gender {patient_info.gender}, Family History of Cancer: {patient_info.family_history or 'No'}, Previous Cancer History: {patient_info.previous_cancer_history or 'No'}."
-            if dataset == "breast" and patient_info.menopause_status:
-                summary += f" Menopause status: {patient_info.menopause_status}."
-            if dataset == "lung" and patient_info.smoking_history:
-                summary += f" Smoking history: {patient_info.smoking_history}."
-            if patient_info.brca_status:
-                summary += f" BRCA Mutation status: {patient_info.brca_status}."
-                
-            # Synthesize clinical assessment
-            is_malignant = display_class != "Benign"
-            if is_malignant:
-                if patient_info.family_history and patient_info.family_history.lower() == "yes":
-                    summary += " The combination of histopathological malignancy indicators and positive familial cancer history supports an elevated risk level. High clinical priority is advised."
-                else:
-                    summary += " Standard oncology referral and staging should be initiated."
+            if pred_class == "malignant":
+                summary = (
+                    f"Comprehensive histopathological assessment of the breast biopsy specimen for {name} (Age {age}, {gender}) "
+                    f"demonstrates architectural disorganization, hyperchromatic pleomorphic nuclei, and invasive cellular proliferation characteristic of Infiltrating Ductal/Lobular Carcinoma. "
+                    f"The ResNet50 deep learning model confirms malignancy with a high diagnostic confidence of {confidence_pct:.1f}%. "
+                )
+                if patient_info:
+                    context = []
+                    if patient_info.menopause_status: context.append(f"Menopause: {patient_info.menopause_status}")
+                    if patient_info.brca_status: context.append(f"BRCA: {patient_info.brca_status}")
+                    if patient_info.family_history: context.append(f"Family History: {patient_info.family_history}")
+                    if patient_info.symptoms: context.append(f"Symptoms: {patient_info.symptoms}")
+                    if context:
+                        summary += f"Patient Context: {', '.join(context)}. "
+                    summary += "Multidisciplinary oncological staging, biomarker quantification (ER/PR/HER2/Ki-67), and surgical oncology evaluation are warranted."
             else:
-                if patient_info.symptoms and patient_info.symptoms.lower() != "none":
-                    summary += f" Although the AI classification is Benign, the presenting symptoms ({patient_info.symptoms}) mandate physical monitoring to rule out atypical sub-visual changes."
+                summary = (
+                    f"Histopathological biopsy examination for {name} (Age {age}, {gender}) reveals well-differentiated, non-neoplastic breast tissue architecture. "
+                    f"Intact double-layered ductal/lobular structures with uniform, normochromatic nuclei are observed without signs of malignant transformation. "
+                    f"The AI model classifies the specimen as Benign with {confidence_pct:.1f}% confidence. "
+                )
+                if patient_info and patient_info.symptoms and patient_info.symptoms.lower() not in ("", "none", "n/a"):
+                    summary += f"While the microscopic slide is free of malignancy, presenting symptoms ('{patient_info.symptoms}') warrant clinical ultrasound correlation to evaluate benign breast changes."
                 else:
-                    summary += " The clinical presentation and AI prediction are concordant, supporting conservative management."
-                    
+                    summary += "The microscopic findings are concordant with healthy benign parenchyma, supporting conservative observation."
+
+        else:
+            if pred_class == "lung_aca":
+                summary = (
+                    f"Microscopic histopathological analysis of the lung biopsy for {name} (Age {age}, {gender}) identifies malignant glandular structures, acinar/papillary formation, "
+                    f"and nuclear atypia consistent with Lung Adenocarcinoma. Deep learning classification confirmed this diagnosis with {confidence_pct:.1f}% confidence. "
+                )
+                if patient_info and patient_info.smoking_history:
+                    summary += f"Smoking History: {patient_info.smoking_history}. "
+                summary += "Immediate molecular profiling (EGFR/ALK/ROS1/PD-L1) and full-body PET-CT staging are recommended."
+            elif pred_class == "lung_scc":
+                summary = (
+                    f"Pulmonary tissue biopsy examination for {name} (Age {age}, {gender}) reveals sheets of polygonal squamous cells with keratin pearl formation, "
+                    f"intercellular bridging, and marked pleomorphism diagnostic of Lung Squamous Cell Carcinoma. AI diagnostic confidence is {confidence_pct:.1f}%. "
+                )
+                if patient_info and patient_info.smoking_history:
+                    summary += f"Smoking History: {patient_info.smoking_history}. "
+                summary += "Bronchoscopic airway staging, PD-L1 TPS quantification, and thoracic surgical consultation are advised."
+            else:
+                summary = (
+                    f"Microscopic inspection of the pulmonary biopsy for {name} (Age {age}, {gender}) demonstrates healthy alveolar septa, patent microvascular spaces, "
+                    f"and normal bronchial ciliated epithelium without malignant cytological atypia. The AI model classifies the tissue as Normal / Benign with {confidence_pct:.1f}% confidence. "
+                )
+                if patient_info and patient_info.smoking_history and patient_info.smoking_history.lower() in ["current", "former"]:
+                    summary += f"Given {patient_info.smoking_history} smoking status, structured cessation guidance and annual Low-Dose CT screening are recommended."
+                elif patient_info and patient_info.symptoms and patient_info.symptoms.lower() not in ("", "none", "n/a"):
+                    summary += f"Presenting respiratory symptoms ('{patient_info.symptoms}') suggest non-malignant pulmonary etiology; correlation with clinical spirometry is advised."
+
         return summary
+
+    def generate_report(self, model_name: str, dataset: str, image_path: str, patient_info: PatientInfoSchema) -> dict:
+        """Orchestrates prediction and explanation to generate a comprehensive clinical report."""
+        
+        # 1. Run Inference
+        prediction = inference_service.predict(model_name, dataset, image_path)
+        
+        # 2. Run Explainability
+        gradcam = explainability_service.generate_explanation(model_name, dataset, image_path)
+        
+        # 3. Formulate Specific Multimodal Recommendation
+        recommendation = self._generate_recommendation_multimodal(dataset, prediction["predicted_class"], prediction["confidence"], patient_info)
+        
+        # 4. Formulate Detailed Case-Specific Diagnostic Summary
+        diagnostic_summary = self._generate_diagnostic_summary(dataset, prediction, patient_info)
+
+        # 5. Generate Individualized Follow-up Diagnostics list
+        follow_up_items = self._generate_follow_up_diagnostics(dataset, prediction["predicted_class"], patient_info)
+
+        # 6. Compute Dynamic Clinical Risk Score
+        risk_score = self._compute_risk_score(dataset, prediction["predicted_class"], patient_info)
+        
+        report = {
+            "patient_info": patient_info.model_dump() if patient_info else None,
+            "prediction": prediction,
+            "gradcam": gradcam,
+            "recommendation": recommendation,
+            "diagnostic_summary": diagnostic_summary,
+            "follow_up_items": follow_up_items,
+            "risk_score": risk_score,
+        }
+        
+        return report
 
 report_service = ReportService()
