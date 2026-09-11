@@ -30,7 +30,7 @@ export default function LungPrediction() {
   const [result, setResult] = useState<any>(null);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
-  const [selectedModel, setSelectedModel] = useState<string>('resnet50');
+  const [selectedModel, setSelectedModel] = useState<string>('densenet121');
   const [zoomScale, setZoomScale] = useState(1);
   const [activeTab, setActiveTab] = useState<string>('overlay');
   const [heatmapOpacity, setHeatmapOpacity] = useState<number>(0.6);
@@ -68,7 +68,7 @@ export default function LungPrediction() {
     'Uploading Image...',
     'Preprocessing & Normalizing...',
     'Extracting Deep Features...',
-    'Running Inference (ResNet50)...',
+    `Running Deep Inference (${selectedModel.toUpperCase()})...`,
     'Generating Grad-CAM Heatmap...',
     'Compiling Clinical Report...',
     'Prediction Completed!'
@@ -630,8 +630,10 @@ export default function LungPrediction() {
                         <Form.Label className="small fw-bold text-muted d-flex align-items-center">
                           <FaInfoCircle className="me-1 text-secondary" /> AI Model Architecture
                         </Form.Label>
-                        <Form.Select value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)} className="py-2" disabled>
-                          <option value="resnet50">ResNet50 (Primary Model)</option>
+                        <Form.Select value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)} className="py-2">
+                          <option value="densenet121">DenseNet121 (Recommended — 98.3% SOTA Accuracy)</option>
+                          <option value="resnet50">ResNet50 (Primary Transfer Learning)</option>
+                          <option value="efficientnet">EfficientNetB0 (Lightweight CNN)</option>
                         </Form.Select>
                       </Form.Group>
                     </Col>

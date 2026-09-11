@@ -123,7 +123,7 @@ class GradCAMGenerator:
         return heatmap.numpy(), preds.numpy()[0], int(pred_index)
 
     def generate_and_save(self, img_path, save_dir, true_label=None):
-        """Generates Grad-CAM for an image and saves the results."""
+        """Generates Grad-CAM for an image and saves the results with morphological tissue refinement."""
         os.makedirs(save_dir, exist_ok=True)
         img_name = os.path.basename(img_path).split('.')[0]
         
@@ -133,7 +133,7 @@ class GradCAMGenerator:
         img_array_scaled = img_array / 255.0
         img_array_batch = np.expand_dims(img_array_scaled, axis=0)
         
-        # Generate heatmap
+        # Generate raw deep convolutional heatmap
         heatmap, preds, pred_index = self.get_gradcam_heatmap(img_array_batch)
         pred_index = int(pred_index)
         
@@ -152,13 +152,27 @@ class GradCAMGenerator:
         orig_save_path = os.path.join(save_dir, f"{img_name}_original.png")
         cv2.imwrite(orig_save_path, orig_img)
         
-        # Resize heatmap to match image dimensions with Gaussian smoothing for smooth visual gradients
-        heatmap_resized = cv2.resize(heatmap, (w, h))
-        heatmap_resized = cv2.GaussianBlur(heatmap_resized, (11, 11), 0)
-        max_hm = np.max(heatmap_resized)
-        if max_hm > 0:
-            heatmap_resized = heatmap_resized / max_hm
-        heatmap_uint8 = np.uint8(255 * np.clip(heatmap_resized, 0, 1))
+        # Resize deep feature heatmap to original slide dimensions
+        heatmap_resized = cv2.resize(heatmap, (w, h), interpolation=cv2.INTER_CUBIC)
+        
+        # Extract histological cellular density & stain absorption (Hematoxylin absorbs in Green/Red channels)
+        gray = cv2.cvtColor(orig_img, cv2.COLOR_BGR2GRAY)
+        inv_gray = 255.0 - gray.astype(np.float32)
+        inv_gray_norm = (inv_gray - inv_gray.min()) / (inv_gray.max() - inv_gray.min() + 1e-6)
+        
+        # Tissue mask (exclude background white/empty glass space)
+        tissue_mask = (gray < 225).astype(np.float32)
+
+        # Modulate Grad-CAM with microscopic cellular morphology for slide-specific localization
+        refined_hm = heatmap_resized * 0.55 + (heatmap_resized * inv_gray_norm) * 0.45
+        refined_hm = refined_hm * tissue_mask
+        
+        # Normalize refined heatmap
+        if np.max(refined_hm) > 0:
+            refined_hm = (refined_hm - np.min(refined_hm)) / (np.max(refined_hm) - np.min(refined_hm) + 1e-6)
+        
+        refined_hm = cv2.GaussianBlur(refined_hm, (7, 7), 0)
+        heatmap_uint8 = np.uint8(255 * np.clip(refined_hm, 0, 1))
         
         # Apply JET colormap
         jet_heatmap = cv2.applyColorMap(heatmap_uint8, cv2.COLORMAP_JET)
