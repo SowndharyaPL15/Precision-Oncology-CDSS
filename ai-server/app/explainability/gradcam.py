@@ -6,16 +6,22 @@ import tensorflow as tf
 from tensorflow.keras.models import load_model
 
 class GradCAMGenerator:
-    def __init__(self, model_path, class_names):
+    def __init__(self, model_or_path, class_names):
         """
         Initializes the GradCAM generator.
         
         Args:
-            model_path: Path to the trained .keras model.
+            model_or_path: Loaded tf.keras.Model instance or path to the trained .keras model.
             class_names: List of class names corresponding to output indices.
         """
-        print(f"[INFO] Loading model from {model_path}...")
-        self.model = load_model(model_path)
+        if isinstance(model_or_path, tf.keras.Model):
+            self.model = model_or_path
+        else:
+            print(f"[INFO] Loading model from {model_or_path}...")
+            try:
+                self.model = tf.keras.models.load_model(model_or_path, compile=False, safe_mode=False)
+            except Exception:
+                self.model = tf.keras.models.load_model(model_or_path, compile=False)
         self.class_names = class_names
         self.base_model, self.classifier_layers = self._extract_submodels()
         self.last_conv_layer_name = self._find_last_conv_layer(self.model)

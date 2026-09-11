@@ -76,7 +76,10 @@ class InferenceService:
         model_path = self._get_model_path(model_name, dataset)
         logger.info(f"Loading {model_name} for {dataset} from {model_path}...")
         
-        model = tf.keras.models.load_model(model_path)
+        try:
+            model = tf.keras.models.load_model(model_path, compile=False, safe_mode=False)
+        except Exception:
+            model = tf.keras.models.load_model(model_path, compile=False)
         self.loaded_models[key] = model
         return model
 
