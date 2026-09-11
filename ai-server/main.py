@@ -110,5 +110,10 @@ async def startup_db():
         print(f"[WARNING] Startup database setup warning: {e}")
 
 if __name__ == "__main__":
+    import os
     import uvicorn
-    uvicorn.run("main:app", host="127.0.0.1", port=8005, reload=False)
+    
+    port = int(os.environ.get("PORT", 8005))
+    host = os.environ.get("HOST", "0.0.0.0")
+    print(f"[INFO] Starting server on {host}:{port}...")
+    uvicorn.run("main:app", host=host, port=port, reload=False)
