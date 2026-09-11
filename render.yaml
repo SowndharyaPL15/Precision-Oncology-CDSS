@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: precision-oncology-cdss
+    runtime: python
+    plan: free
+    autoDeploy: true
+    buildCommand: "./build.sh"
+    startCommand: "python ai-server/main.py"
+    healthCheckPath: "/api/v1/models"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.12
+      - key: NODE_VERSION
+        value: 20.x
+      - key: PORT
+        value: 10000
+      - key: HOST
+        value: 0.0.0.0
+      - key: ADMIN_SIGNUP_CODE
+        value: ADMIN-SECRET-2026
+      - key: ADMIN_APPROVAL_CODE
+        value: PREC-ONCO-2026
+      - key: TF_ENABLE_ONEDNN_OPTS
+        value: "0"
