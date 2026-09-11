@@ -1,7 +1,26 @@
 import axios from 'axios';
 
-// Update to match backend API URL when it's running, supporting Vite env variables in production
-export const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8005';
+// Smart backend API URL resolver:
+// 1. If explicit VITE_API_URL is configured, use it.
+// 2. If running in browser on production (e.g. on Render, Vercel, or custom domain), default to current origin.
+// 3. If running locally on localhost/127.0.0.1, default to port 8005.
+const getBackendUrl = (): string => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (envUrl && envUrl.trim() !== '') {
+    return envUrl.trim().replace(/\/$/, '');
+  }
+
+  if (typeof window !== 'undefined' && window.location) {
+    const hostname = window.location.hostname;
+    if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
+      return window.location.origin;
+    }
+  }
+
+  return 'http://127.0.0.1:8005';
+};
+
+export const BACKEND_URL = getBackendUrl();
 export const API_BASE_URL = `${BACKEND_URL}/api/v1`;
 
 export const getMediaUrl = (path: string | null | undefined): string => {
