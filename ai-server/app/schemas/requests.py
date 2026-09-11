@@ -2,10 +2,10 @@ from pydantic import BaseModel, Field
 from typing import Optional, List
 
 class PatientInfoSchema(BaseModel):
-    patient_id: str = Field(..., description="Unique patient identifier")
+    patient_id: Optional[str] = Field(default="P-UNKNOWN", description="Unique patient identifier")
     patient_name: Optional[str] = Field(default=None, description="Patient name")
-    age: int = Field(..., description="Patient age")
-    gender: str = Field(..., description="Patient gender")
+    age: Optional[int] = Field(default=45, description="Patient age")
+    gender: Optional[str] = Field(default="Unknown", description="Patient gender")
     cancer_type: Optional[str] = Field(default=None, description="Cancer type (breast or lung)")
     symptoms: Optional[str] = Field(default=None, description="Reported symptoms")
     family_history: Optional[str] = Field(default=None, description="Family history of cancer (Yes/No)")

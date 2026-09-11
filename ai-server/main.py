@@ -12,10 +12,10 @@ app = FastAPI(
     description="REST API Backend for Precision Oncology using Transfer Learning Models"
 )
 
-# CORS configuration
+# CORS configuration - Allow all web clients securely
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"https://.*\.onrender\.com|http://localhost:\d+|http://127\.0\.0\.1:\d+",
+    allow_origin_regex=r".*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

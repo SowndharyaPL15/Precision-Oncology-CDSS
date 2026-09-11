@@ -15,6 +15,7 @@ export const getMediaUrl = (path: string | null | undefined): string => {
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
+  timeout: 120000, // 2 minutes timeout for deep learning inference
   headers: {
     'Content-Type': 'application/json',
   },

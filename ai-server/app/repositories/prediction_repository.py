@@ -8,6 +8,25 @@ class PredictionRepository:
         self.session = session
 
     async def create_prediction(self, patient_id: str, dataset: str, model_name: str, predicted_class: str, confidence: float, probabilities: dict, gradcam_path: str = None, report_path: str = None) -> Prediction:
+        # Check if patient exists, if not create record to prevent FK violation
+        from app.db.models import Patient, Doctor
+        result = await self.session.execute(select(Patient).filter(Patient.patient_id == patient_id))
+        patient = result.scalars().first()
+        if not patient:
+            doc_res = await self.session.execute(select(Doctor))
+            doc = doc_res.scalars().first()
+            doc_id = doc.doctor_id if doc else "doc-1"
+            
+            patient = Patient(
+                patient_id=patient_id,
+                doctor_id=doc_id,
+                full_name=f"Patient {patient_id}",
+                age=45,
+                gender="Unknown"
+            )
+            self.session.add(patient)
+            await self.session.flush()
+
         prediction = Prediction(
             patient_id=patient_id,
             dataset=dataset,

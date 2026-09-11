@@ -325,7 +325,8 @@ export default function LungPrediction() {
       
       toast.success('AI Prediction generated successfully!');
     } catch (error: any) {
-      const detail = error.response?.data?.detail || 'Prediction failed. Please check network/backend connectivity.';
+      console.error('Prediction request error:', error);
+      const detail = error.response?.data?.detail || error.message || 'Prediction failed. Please check network/backend connectivity.';
       toast.error(`Analysis Error: ${detail}`);
     } finally {
       setLoading(false);
