@@ -18,16 +18,54 @@ class InferenceService:
         }
 
     def _get_model_path(self, model_name: str, dataset: str) -> str:
-        """Resolves the path to the best available model file."""
-        base_path = os.path.join(settings.MODELS_DIR, model_name, dataset)
+        """Resolves the path to the best available model file across candidate paths."""
+        m_name = model_name.lower().strip()
+        if "dense" in m_name:
+            m_name = "densenet121"
+        elif "resnet" in m_name:
+            m_name = "resnet50"
+        elif "efficient" in m_name:
+            m_name = "efficientnet"
+            
+        d_name = dataset.lower().strip()
+        if "breast" in d_name:
+            d_name = "breast"
+        elif "lung" in d_name:
+            d_name = "lung"
+
+        candidate_dirs = [
+            os.path.join(settings.MODELS_DIR, m_name, d_name),
+            os.path.join(settings.BASE_DIR, "models", m_name, d_name),
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "models", m_name, d_name)),
+            os.path.abspath(os.path.join(os.getcwd(), "models", m_name, d_name)),
+            os.path.abspath(os.path.join(os.getcwd(), "..", "models", m_name, d_name)),
+            os.path.join(settings.MODELS_DIR, "saved_models"),
+            os.path.join(settings.BASE_DIR, "models", "saved_models"),
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "models", "saved_models")),
+            os.path.abspath(os.path.join(os.getcwd(), "models", "saved_models")),
+            os.path.abspath(os.path.join(os.getcwd(), "..", "models", "saved_models")),
+        ]
         
-        # Try final model first, fallback to stage2, then stage1
-        for filename in ["final_model_v1.keras", "stage2_best.keras", "stage1_best.keras"]:
-            path = os.path.join(base_path, filename)
-            if os.path.exists(path):
-                return path
+        candidate_files = [
+            "final_model_v1.keras",
+            "stage2_best.keras",
+            "stage1_best.keras",
+            f"best_model_{d_name}_cancer.keras",
+            f"best_model_{d_name}.keras",
+            "best_model.keras",
+            "final_model.keras",
+            "model.keras"
+        ]
+
+        for cdir in candidate_dirs:
+            if os.path.isdir(cdir):
+                for fname in candidate_files:
+                    fpath = os.path.join(cdir, fname)
+                    if os.path.isfile(fpath):
+                        return fpath
         
-        raise FileNotFoundError(f"No trained model found for {model_name} on {dataset}.")
+        raise FileNotFoundError(f"No trained model found for {model_name} on {dataset}. Checked paths: {candidate_dirs}")
+
 
     def load_model(self, model_name: str, dataset: str):
         """Lazily loads a Keras model into memory and caches it."""
