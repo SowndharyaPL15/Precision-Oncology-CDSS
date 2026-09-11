@@ -276,7 +276,9 @@ export default function PredictionResult() {
 
             {/* Visual Analysis */}
             <div className="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
-              <h6 className="fw-bold text-uppercase text-muted mb-0">Visual Analysis (Explainable AI)</h6>
+              <h6 className="fw-bold text-uppercase text-muted mb-0">
+                {isMalignant ? 'Visual Analysis (Explainable AI)' : 'Histopathological Microscopic Slide (Normal / Benign)'}
+              </h6>
               <div className="d-flex gap-2">
                 <Button size="sm" variant="outline-secondary" onClick={() => setZoomScale(s => Math.max(0.5, s - 0.25))}><FaUndo style={{ transform: 'rotate(-90deg)' }} /></Button>
                 <Button size="sm" variant="outline-secondary" onClick={() => setZoomScale(s => Math.min(2, s + 0.25))}><FaSearchPlus /></Button>
@@ -287,50 +289,78 @@ export default function PredictionResult() {
             <Row className="mb-5">
               <Col xs={12}>
                 <div className="border rounded-4 bg-dark overflow-hidden p-3 position-relative d-flex flex-column align-items-center justify-content-center" style={{ minHeight: '380px' }}>
-                  <Tabs activeKey={activeTab} onSelect={(k) => setActiveTab(k || 'overlay')} className="w-100 justify-content-center border-0 mb-3 bg-dark bg-opacity-50 rounded p-1">
-                    <Tab eventKey="original" title={<span className="text-white small px-2"><FaImage className="me-1"/> Original Scan</span>}>
-                      <div className="overflow-auto text-center" style={{ maxHeight: '300px' }}>
+                  {isMalignant && gradcam?.heatmap_path ? (
+                    <Tabs activeKey={activeTab} onSelect={(k) => setActiveTab(k || 'overlay')} className="w-100 justify-content-center border-0 mb-3 bg-dark bg-opacity-50 rounded p-1">
+                      <Tab eventKey="original" title={<span className="text-white small px-2"><FaImage className="me-1"/> Original Scan</span>}>
+                        <div className="overflow-auto text-center" style={{ maxHeight: '300px' }}>
+                          <img 
+                            src={getMediaUrl(gradcam?.original_path) || preview} 
+                            crossOrigin="anonymous"
+                            alt="Original Pathological Image" 
+                            style={{ transform: `scale(${zoomScale})`, transition: 'transform 0.2s', maxHeight: '250px', maxWidth: '100%', objectFit: 'contain', display: 'block', margin: '0 auto' }}
+                            className="rounded shadow"
+                            onError={(e: any) => {
+                              e.target.src = preview || 'https://via.placeholder.com/400x400/eeeeee/333333?text=Original+Scan';
+                            }}
+                          />
+                        </div>
+                      </Tab>
+                      <Tab eventKey="heatmap" title={<span className="text-white small px-2"><FaThermometerHalf className="me-1"/> Heatmap</span>}>
+                        <div className="overflow-auto text-center" style={{ maxHeight: '300px' }}>
+                          <img 
+                            src={getMediaUrl(gradcam?.heatmap_path)} 
+                            crossOrigin="anonymous"
+                            alt="Grad-CAM Heatmap" 
+                            style={{ transform: `scale(${zoomScale})`, transition: 'transform 0.2s', maxHeight: '250px', maxWidth: '100%', objectFit: 'contain', display: 'block', margin: '0 auto' }}
+                            className="rounded shadow"
+                            onError={(e: any) => {
+                              e.target.src = 'https://via.placeholder.com/400x400/d63384/ffffff?text=Heatmap+Not+Generated';
+                            }}
+                          />
+                        </div>
+                      </Tab>
+                      <Tab eventKey="overlay" title={<span className="text-white small px-2"><FaSearchPlus className="me-1"/> Combined Overlay</span>}>
+                        <div className="overflow-auto text-center" style={{ maxHeight: '300px' }}>
+                          <img 
+                            src={getMediaUrl(gradcam?.overlay_path)} 
+                            crossOrigin="anonymous"
+                            alt="Grad-CAM Overlay" 
+                            style={{ transform: `scale(${zoomScale})`, transition: 'transform 0.2s', maxHeight: '250px', maxWidth: '100%', objectFit: 'contain', display: 'block', margin: '0 auto' }}
+                            className="rounded shadow"
+                            onError={(e: any) => {
+                              e.target.src = 'https://via.placeholder.com/400x400/222222/ffffff?text=Overlay+Not+Available';
+                            }}
+                          />
+                        </div>
+                      </Tab>
+                    </Tabs>
+                  ) : (
+                    <div className="text-center w-100 py-3">
+                      <div className="badge bg-success bg-opacity-25 text-success border border-success border-opacity-50 px-3 py-2 rounded-pill mb-3 fs-6">
+                        ✓ Normal / Non-Malignant Histology (No Malignancy Detected)
+                      </div>
+                      <div className="overflow-auto text-center w-100 d-flex justify-content-center align-items-center" style={{ minHeight: '260px' }}>
                         <img 
                           src={getMediaUrl(gradcam?.original_path) || preview} 
                           crossOrigin="anonymous"
-                          alt="Original Pathological Image" 
-                          style={{ transform: `scale(${zoomScale})`, transition: 'transform 0.2s', maxHeight: '250px', maxWidth: '100%', objectFit: 'contain', display: 'block', margin: '0 auto' }}
-                          className="rounded shadow"
-                          onError={(e: any) => {
-                            e.target.src = preview || 'https://via.placeholder.com/400x400/eeeeee/333333?text=Original+Scan';
+                          alt="Original Normal Histopathology Slide" 
+                          style={{ 
+                            transform: `scale(${zoomScale})`, 
+                            transition: 'transform 0.2s', 
+                            maxHeight: '250px', 
+                            maxWidth: '100%', 
+                            objectFit: 'contain', 
+                            display: 'block', 
+                            margin: '0 auto' 
                           }}
+                          className="rounded shadow border border-secondary"
                         />
                       </div>
-                    </Tab>
-                    <Tab eventKey="heatmap" title={<span className="text-white small px-2"><FaThermometerHalf className="me-1"/> Heatmap</span>}>
-                      <div className="overflow-auto text-center" style={{ maxHeight: '300px' }}>
-                        <img 
-                          src={getMediaUrl(gradcam?.heatmap_path)} 
-                          crossOrigin="anonymous"
-                          alt="Grad-CAM Heatmap" 
-                          style={{ transform: `scale(${zoomScale})`, transition: 'transform 0.2s', maxHeight: '250px', maxWidth: '100%', objectFit: 'contain', display: 'block', margin: '0 auto' }}
-                          className="rounded shadow"
-                          onError={(e: any) => {
-                            e.target.src = 'https://via.placeholder.com/400x400/d63384/ffffff?text=Heatmap+Not+Generated';
-                          }}
-                        />
-                      </div>
-                    </Tab>
-                    <Tab eventKey="overlay" title={<span className="text-white small px-2"><FaSearchPlus className="me-1"/> Combined Overlay</span>}>
-                      <div className="overflow-auto text-center" style={{ maxHeight: '300px' }}>
-                        <img 
-                          src={getMediaUrl(gradcam?.overlay_path)} 
-                          crossOrigin="anonymous"
-                          alt="Grad-CAM Overlay" 
-                          style={{ transform: `scale(${zoomScale})`, transition: 'transform 0.2s', maxHeight: '250px', maxWidth: '100%', objectFit: 'contain', display: 'block', margin: '0 auto' }}
-                          className="rounded shadow"
-                          onError={(e: any) => {
-                            e.target.src = 'https://via.placeholder.com/400x400/222222/ffffff?text=Overlay+Not+Available';
-                          }}
-                        />
-                      </div>
-                    </Tab>
-                  </Tabs>
+                      <p className="text-white-50 small mt-3 mb-0" style={{ maxWidth: '500px', margin: '0 auto' }}>
+                        * Microscopic examination demonstrates normal, non-malignant tissue architecture without malignant foci. Grad-CAM visual heatmaps are not indicated for normal tissue.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </Col>
             </Row>
