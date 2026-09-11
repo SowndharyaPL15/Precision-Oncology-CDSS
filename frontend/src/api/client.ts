@@ -1,7 +1,14 @@
 import axios from 'axios';
 
 // Update to match backend API URL when it's running, supporting Vite env variables in production
-export const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8005';
+const isLocal = typeof window !== 'undefined' && (
+  window.location.hostname === 'localhost' ||
+  window.location.hostname === '127.0.0.1' ||
+  window.location.hostname.startsWith('192.168.') ||
+  window.location.hostname === '[::1]'
+);
+
+export const BACKEND_URL = import.meta.env.VITE_API_URL || (isLocal ? 'http://127.0.0.1:8005' : 'https://precision-oncology-backend.onrender.com');
 export const API_BASE_URL = `${BACKEND_URL}/api/v1`;
 
 export const getMediaUrl = (path: string | null | undefined): string => {
@@ -15,6 +22,7 @@ export const getMediaUrl = (path: string | null | undefined): string => {
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
+  timeout: 60000,
   headers: {
     'Content-Type': 'application/json',
   },
