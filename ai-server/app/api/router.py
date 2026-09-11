@@ -93,7 +93,8 @@ async def get_models():
 def map_model_name(model_name: str) -> str:
     mapping = {
         "densenet169": "densenet121",
-        "resnet50": "densenet121",
+        "resnet50": "resnet50",
+        "resnet": "resnet50",
         "efficientnetb0": "efficientnet",
         "densenet121": "densenet121",
         "efficientnet": "efficientnet"
