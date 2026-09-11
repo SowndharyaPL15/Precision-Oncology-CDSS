@@ -1,6 +1,7 @@
 import os
 import shutil
 import uuid
+import traceback
 from app.core.config import settings
 from app.core.logging import logger
 from app.services.inference_service import inference_service
@@ -20,7 +21,7 @@ class ExplainabilityService:
         model_path = inference_service._get_model_path(model_name, dataset)
         class_names = inference_service.class_maps[dataset]
         
-        logger.info(f"Initializing GradCAMGenerator for {model_name} on {dataset}...")
+        logger.info(f"Initializing GradCAMGenerator for {model_name} on {dataset} from {model_path}...")
         generator = GradCAMGenerator(model_path, class_names)
         self.generators[key] = generator
         return generator
@@ -43,7 +44,7 @@ class ExplainabilityService:
         
         try:
             generator = self._get_generator(model_name, dataset)
-            logger.info(f"Generating Grad-CAM explanation for {image_path}...")
+            logger.info(f"Generating authentic Grad-CAM explanation for {image_path} with {model_name} on {dataset}...")
             result = generator.generate_and_save(image_path, save_dir, true_label=None)
             
             return {
@@ -54,53 +55,8 @@ class ExplainabilityService:
                 "original_path": f"{base_url}/{img_name}_original.png"
             }
         except Exception as e:
-            logger.warning(f"Grad-CAM generation failed, using mock visualization: {e}")
-            
-            # Generate a colorful clinical mock heatmap matching exact image length and breadth
-            try:
-                import numpy as np
-                import cv2
-                from PIL import Image
-                
-                orig_cv = cv2.imread(image_path)
-                if orig_cv is None:
-                    pil_img = Image.open(image_path).convert('RGB')
-                    orig_cv = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
-
-                h, w = orig_cv.shape[:2]
-                
-                # Create a Gaussian activation heatmap matching exact aspect ratio (h, w)
-                y, x = np.mgrid[0:h, 0:w]
-                cy, cx = h * 0.45, w * 0.5
-                sigma_y, sigma_x = max(h * 0.22, 10.0), max(w * 0.22, 10.0)
-                z = np.exp(-((x - cx)**2 / (2 * sigma_x**2) + (y - cy)**2 / (2 * sigma_y**2)))
-                z_norm = np.uint8(255 * (z / np.max(z)))
-                
-                jet_heatmap = cv2.applyColorMap(z_norm, cv2.COLORMAP_JET)
-                
-                dest_original = os.path.join(save_dir, f"{img_name}_original.png")
-                cv2.imwrite(dest_original, orig_cv)
-                
-                dest_heatmap = os.path.join(save_dir, f"{img_name}_heatmap.png")
-                cv2.imwrite(dest_heatmap, jet_heatmap)
-                
-                dest_overlay = os.path.join(save_dir, f"{img_name}_overlay.png")
-                superimposed = (jet_heatmap / 255.0) * 0.4 + (orig_cv / 255.0) * 0.6
-                superimposed = np.clip(superimposed, 0, 1)
-                cv2.imwrite(dest_overlay, np.uint8(255 * superimposed))
-            except Exception as e_inner:
-                logger.error(f"Failed to generate mock heatmap: {e_inner}")
-                shutil.copy(image_path, os.path.join(save_dir, f"{img_name}_original.png"))
-                shutil.copy(image_path, os.path.join(save_dir, f"{img_name}_heatmap.png"))
-                shutil.copy(image_path, os.path.join(save_dir, f"{img_name}_overlay.png"))
-                
-            predicted_class = "lung_aca" if dataset == "lung" else "malignant"
-            return {
-                "predicted_class": predicted_class,
-                "confidence": 0.85,
-                "heatmap_path": f"{base_url}/{img_name}_heatmap.png",
-                "overlay_path": f"{base_url}/{img_name}_overlay.png",
-                "original_path": f"{base_url}/{img_name}_original.png"
-            }
+            logger.error(f"Grad-CAM generation failed: {e}\n{traceback.format_exc()}")
+            raise RuntimeError(f"Grad-CAM generation failed for {model_name} on {dataset}: {str(e)}")
 
 explainability_service = ExplainabilityService()
+
