@@ -1,7 +1,7 @@
 import tensorflow as tf
 from tensorflow.keras import layers, models
 
-def build_efficientnet_b0(num_classes: int, input_shape: tuple = (224, 224, 3)) -> models.Model:
+def build_efficientnet_b0(num_classes: int, input_shape: tuple = (224, 224, 3), weights: str = 'imagenet') -> models.Model:
     """
     Builds and compiles an EfficientNetB0 transfer learning model.
     The base model weights are frozen. A custom classification head is appended.
@@ -9,14 +9,15 @@ def build_efficientnet_b0(num_classes: int, input_shape: tuple = (224, 224, 3)) 
     Args:
         num_classes (int): Number of target classes.
         input_shape (tuple): Shape of the input images. Defaults to (224, 224, 3).
+        weights (str or None): Pretrained weights ('imagenet' or None).
         
     Returns:
         models.Model: Compiled Keras model.
     """
-    # 1. Base Model definition (Pre-trained on ImageNet)
+    # 1. Base Model definition
     base_model = tf.keras.applications.EfficientNetB0(
         include_top=False,
-        weights='imagenet',
+        weights=weights,
         input_shape=input_shape
     )
     

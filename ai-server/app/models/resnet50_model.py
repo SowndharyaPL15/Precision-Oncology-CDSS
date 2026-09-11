@@ -1,15 +1,15 @@
 import tensorflow as tf
 from tensorflow.keras import layers, models
 
-def build_resnet50(num_classes: int, image_shape: tuple = (224, 224, 3)) -> models.Model:
+def build_resnet50(num_classes: int, image_shape: tuple = (224, 224, 3), weights: str = 'imagenet') -> models.Model:
     """
     Builds and compiles a ResNet50 transfer learning model.
     The base model weights are frozen. A custom classification head is appended.
     """
-    # 1. Base Model definition (Pre-trained on ImageNet)
+    # 1. Base Model definition
     base_model = tf.keras.applications.ResNet50(
         include_top=False,
-        weights='imagenet',
+        weights=weights,
         input_shape=image_shape
     )
     

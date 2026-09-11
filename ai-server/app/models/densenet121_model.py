@@ -2,7 +2,7 @@ import tensorflow as tf
 from tensorflow.keras import layers, models
 
 
-def build_densenet121(num_classes: int, image_shape: tuple = (224, 224, 3)) -> models.Model:
+def build_densenet121(num_classes: int, image_shape: tuple = (224, 224, 3), weights: str = 'imagenet') -> models.Model:
     """
     Builds and compiles a DenseNet121 transfer learning model.
     The base model weights are frozen. A custom classification head is appended.
@@ -10,14 +10,15 @@ def build_densenet121(num_classes: int, image_shape: tuple = (224, 224, 3)) -> m
     Args:
         num_classes (int): Number of target classes.
         image_shape (tuple): Shape of the input images. Defaults to (224, 224, 3).
+        weights (str or None): Pretrained weights ('imagenet' or None).
 
     Returns:
         models.Model: Compiled Keras model.
     """
-    # 1. Base Model definition (Pre-trained on ImageNet)
+    # 1. Base Model definition
     base_model = tf.keras.applications.DenseNet121(
         include_top=False,
-        weights='imagenet',
+        weights=weights,
         input_shape=image_shape
     )
 

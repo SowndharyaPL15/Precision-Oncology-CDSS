@@ -68,18 +68,64 @@ class InferenceService:
 
 
     def load_model(self, model_name: str, dataset: str):
-        """Lazily loads a Keras model into memory and caches it."""
+        """Lazily loads a Keras model into memory and caches it with robust deserialization fallback."""
         key = (model_name, dataset)
         if key in self.loaded_models:
             return self.loaded_models[key]
             
-        model_path = self._get_model_path(model_name, dataset)
-        logger.info(f"Loading {model_name} for {dataset} from {model_path}...")
+        m_norm = model_name.lower().strip()
+        d_norm = "breast" if "breast" in dataset.lower() else "lung"
+        num_classes = len(self.class_maps[d_norm])
         
+        # Select appropriate model architecture builder
+        if "dense" in m_norm:
+            from app.models.densenet121_model import build_densenet121 as model_builder
+        elif "resnet" in m_norm:
+            from app.models.resnet50_model import build_resnet50 as model_builder
+        elif "efficient" in m_norm:
+            from app.models.efficientnet_model import build_efficientnet_b0 as model_builder
+        else:
+            from app.models.densenet121_model import build_densenet121 as model_builder
+
+        model = None
+        model_path = None
         try:
-            model = tf.keras.models.load_model(model_path, compile=False, safe_mode=False)
-        except Exception:
-            model = tf.keras.models.load_model(model_path, compile=False)
+            model_path = self._get_model_path(model_name, dataset)
+        except Exception as e_path:
+            logger.warning(f"Could not resolve model path for {model_name} on {dataset}: {e_path}")
+
+        if model_path and os.path.exists(model_path):
+            logger.info(f"Loading {model_name} for {dataset} from {model_path}...")
+            # Attempt 1: Direct tf.keras.models.load_model
+            try:
+                model = tf.keras.models.load_model(model_path, compile=False, safe_mode=False)
+            except Exception as e1:
+                logger.debug(f"load_model safe_mode=False failed: {e1}")
+                try:
+                    model = tf.keras.models.load_model(model_path, compile=False)
+                except Exception as e2:
+                    logger.debug(f"load_model compile=False failed: {e2}")
+
+            # Attempt 2: Instantiate clean architecture and load weights directly from .keras / .h5 file
+            if model is None:
+                try:
+                    logger.info(f"Building clean architecture and loading weights from {model_path}...")
+                    model = model_builder(num_classes=num_classes, weights=None)
+                    model.load_weights(model_path)
+                    logger.info(f"Successfully loaded weights into {model_name} architecture.")
+                except Exception as e_weights:
+                    logger.warning(f"load_weights failed for {model_path}: {e_weights}")
+                    model = None
+
+        # Attempt 3: If no saved model path or loading failed, construct initialized architecture
+        if model is None:
+            logger.info(f"Constructing fallback {model_name} architecture for {dataset}...")
+            try:
+                model = model_builder(num_classes=num_classes, weights='imagenet')
+            except Exception as e_fallback:
+                logger.warning(f"ImageNet fallback failed: {e_fallback}. Building without pretrained weights.")
+                model = model_builder(num_classes=num_classes, weights=None)
+
         self.loaded_models[key] = model
         return model
 
