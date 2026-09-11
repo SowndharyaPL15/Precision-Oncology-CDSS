@@ -68,12 +68,16 @@ async def startup_db():
 
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-            from sqlalchemy import text
-            await conn.execute(text("ALTER TABLE face_embeddings ADD COLUMN IF NOT EXISTS encrypted_embedding TEXT;"))
-            await conn.execute(text("ALTER TABLE face_embeddings ADD COLUMN IF NOT EXISTS model_version VARCHAR(50) DEFAULT 'v1-128d';"))
-            await conn.execute(text("ALTER TABLE face_embeddings ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;"))
-            await conn.execute(text("ALTER TABLE face_embeddings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE;"))
-            await conn.execute(text("ALTER TABLE face_embeddings ADD COLUMN IF NOT EXISTS revoked_at TIMESTAMP WITH TIME ZONE;"))
+            if "postgresql" in str(engine.url):
+                from sqlalchemy import text
+                try:
+                    await conn.execute(text("ALTER TABLE face_embeddings ADD COLUMN IF NOT EXISTS encrypted_embedding TEXT;"))
+                    await conn.execute(text("ALTER TABLE face_embeddings ADD COLUMN IF NOT EXISTS model_version VARCHAR(50) DEFAULT 'v1-128d';"))
+                    await conn.execute(text("ALTER TABLE face_embeddings ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;"))
+                    await conn.execute(text("ALTER TABLE face_embeddings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE;"))
+                    await conn.execute(text("ALTER TABLE face_embeddings ADD COLUMN IF NOT EXISTS revoked_at TIMESTAMP WITH TIME ZONE;"))
+                except Exception as ex:
+                    print(f"[INFO] Migration note: {ex}")
 
         async with AsyncSessionLocal() as session:
             # Seed default doctor account if not exists

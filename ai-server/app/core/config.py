@@ -17,7 +17,8 @@ class Settings(BaseSettings):
     AVAILABLE_DATASETS: list = ["lung", "breast"]
     
     # Database
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/precision_oncology")
+    # Default to sqlite+aiosqlite for zero-config reliability on cloud hosts like Render
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./precision_oncology.db")
     
     # ─── Admin Security Codes ───────────────────────────────────────────────────
     # ADMIN_SIGNUP_CODE   : Required when creating an admin account (POST /auth/signup)
