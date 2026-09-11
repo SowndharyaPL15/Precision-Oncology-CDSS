@@ -847,7 +847,9 @@ export default function BreastPrediction() {
                           </div>
                         </div>
                       </div>
-                     {/* 2. Visual Analysis (Explainable AI / Histopathology Viewer) */}
+                    )}
+
+                    {/* 2. Visual Analysis (Explainable AI / Histopathology Viewer) */}
                     <div className="mb-4">
                       <div className="d-flex justify-content-between align-items-center mb-3">
                         <h6 className="fw-bold mb-0 text-dark d-flex align-items-center">
@@ -1146,7 +1148,8 @@ export default function BreastPrediction() {
       </Row>
 
       {/* Hidden PDF Container */}
-      <div style={{ position: 'absolute', top: -9999, left: -9999, width: '800px', backgroundColor: '#fff' }}>
+      {result && (
+        <div style={{ position: 'absolute', top: -9999, left: -9999, width: '800px', backgroundColor: '#fff' }}>
         <div id="breast-report-pdf" style={{ padding: '30px', fontFamily: 'Arial, sans-serif', color: '#333' }}>
           <div style={{ borderBottom: '2px solid #d63384', paddingBottom: '10px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
