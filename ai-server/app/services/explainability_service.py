@@ -18,11 +18,11 @@ class ExplainabilityService:
         if key in self.generators:
             return self.generators[key]
             
-        model_path = inference_service._get_model_path(model_name, dataset)
+        model = inference_service.load_model(model_name, dataset)
         class_names = inference_service.class_maps[dataset]
         
-        logger.info(f"Initializing GradCAMGenerator for {model_name} on {dataset} from {model_path}...")
-        generator = GradCAMGenerator(model_path, class_names)
+        logger.info(f"Initializing GradCAMGenerator for {model_name} on {dataset}...")
+        generator = GradCAMGenerator(model, class_names)
         self.generators[key] = generator
         return generator
 
