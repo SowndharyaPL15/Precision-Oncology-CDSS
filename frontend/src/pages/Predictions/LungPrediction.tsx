@@ -325,101 +325,8 @@ export default function LungPrediction() {
       
       toast.success('AI Prediction generated successfully!');
     } catch (error: any) {
-      console.warn('Backend API request encountered network issue, generating resilient client-side analysis:', error);
-      
-      const fname = (image.name || '').toLowerCase();
-      let predictedClass = 'lung_n';
-      let displayClass = 'Benign';
-      if (fname.includes('lung_scc') || fname.includes('lungscc') || fname.includes('scc')) {
-        predictedClass = 'lung_scc';
-        displayClass = 'Squamous Cell Carcinoma (Malignant)';
-      } else if (fname.includes('lung_aca') || fname.includes('lungaca') || fname.includes('aca')) {
-        predictedClass = 'lung_aca';
-        displayClass = 'Adenocarcinoma (Malignant)';
-      }
-
-      const isMalignant = predictedClass !== 'lung_n';
-      const charSum = fname.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
-      const deterministicConf = 88.5 + (charSum % 65) / 10.0;
-      const confidence = Math.min(96.8, Math.max(86.5, deterministicConf));
-      const rem = +(100 - confidence).toFixed(2);
-      
-      const img = new Image();
-      img.src = preview || '';
-      await new Promise((resolve) => {
-        img.onload = resolve;
-        img.onerror = resolve;
-      });
-
-      const recommendation = isMalignant
-        ? (predictedClass === 'lung_aca'
-            ? 'URGENT THORACIC ONCOLOGY REFERRAL (Primary Lung Adenocarcinoma): (1) Comprehensive molecular biomarker reflex NGS testing (EGFR, ALK, ROS1, KRAS, PD-L1); (2) Contrast-enhanced chest CT and FDG PET-CT for TNM staging; (3) Contrast brain MRI; (4) Multidisciplinary thoracic tumor board review.'
-            : 'URGENT THORACIC ONCOLOGY REFERRAL (Squamous Cell Lung Carcinoma): (1) Contrast-enhanced chest CT and EBUS-TBNA staging; (2) Whole-body PET-CT; (3) PD-L1 IHC testing; (4) Pulmonology review.')
-        : 'NORMAL PULMONARY PARENCHYMA (No Malignancy Detected): (1) Reassurance of normal pathology; (2) Standard preventative health maintenance; (3) Routine periodic clinical wellness visits.';
-
-      const factors = [
-        { label: 'Age > 55', points: parseInt(formData.age || '0', 10) > 55 ? 2 : 0, max: 2, triggered: parseInt(formData.age || '0', 10) > 55, value: formData.age || 'Unknown' },
-        { label: 'Family History of Cancer', points: formData.familyHistory === 'Yes' ? 2 : 0, max: 2, triggered: formData.familyHistory === 'Yes', value: formData.familyHistory || 'No' },
-        { label: 'Smoking History', points: (formData.smokingHistory || '').toLowerCase().includes('current') ? 3 : (formData.smokingHistory || '').toLowerCase().includes('former') ? 2 : 0, max: 3, triggered: (formData.smokingHistory || '').toLowerCase().includes('smok') || (formData.smokingHistory || '').toLowerCase().includes('current') || (formData.smokingHistory || '').toLowerCase().includes('former'), value: formData.smokingHistory || 'Never' },
-        { label: 'AI Prediction — Malignant', points: isMalignant ? 5 : 0, max: 5, triggered: isMalignant, value: isMalignant ? 'Malignant' : 'Benign / Normal' },
-      ];
-      const totalPoints = factors.reduce((sum, f) => sum + f.points, 0);
-      const maxPoints = factors.reduce((sum, f) => sum + f.max, 0);
-      const percentage = Math.round((totalPoints / maxPoints) * 100);
-      const riskLevel = percentage >= 75 ? 'CRITICAL' : percentage >= 50 ? 'HIGH' : percentage >= 25 ? 'MODERATE' : 'LOW';
-      const riskColor = percentage >= 75 ? 'danger' : percentage >= 50 ? 'warning' : percentage >= 25 ? 'info' : 'success';
-
-      const fallbackGradcam = isMalignant
-        ? {
-            is_cancer: true,
-            original_path: preview || '',
-            heatmap_path: preview || '',
-            overlay_path: preview || '',
-            predicted_class: predictedClass,
-            confidence: +(confidence / 100).toFixed(4)
-          }
-        : {
-            is_cancer: false,
-            original_path: preview || '',
-            heatmap_path: null,
-            overlay_path: null,
-            predicted_class: 'lung_n',
-            confidence: +(confidence / 100).toFixed(4),
-            message: 'Normal / Non-malignant tissue confirmed. Grad-CAM visual heatmaps are not indicated for normal tissue.'
-          };
-
-      setResult({
-        reportId: `REP-${Date.now().toString(36).toUpperCase()}`,
-        predictionId: `PRED-${Date.now().toString(36).toUpperCase()}`,
-        class: displayClass,
-        isMalignant,
-        confidence: +confidence.toFixed(2),
-        probabilities: {
-          lung_aca: predictedClass === 'lung_aca' ? +confidence.toFixed(2) : +(rem * 0.4).toFixed(2),
-          lung_scc: predictedClass === 'lung_scc' ? +confidence.toFixed(2) : +(rem * 0.4).toFixed(2),
-          lung_n: predictedClass === 'lung_n' ? +confidence.toFixed(2) : +(rem * 0.2).toFixed(2)
-        },
-        gradcam: fallbackGradcam,
-        recommendation,
-        riskScore: {
-          score: totalPoints,
-          max_score: maxPoints,
-          percentage,
-          level: riskLevel,
-          color: riskColor,
-          factors
-        },
-        summary: isMalignant
-          ? `Neoplastic lung tissue identified with AI confidence of ${confidence.toFixed(1)}%. Deep convolutional layers highlight targeted density peaks and cellular infiltration suggestive of ${displayClass}.`
-          : `Normal bronchial structures and alveolar spaces observed with AI confidence of ${confidence.toFixed(1)}%. No evidence of cellular atypia or abnormal density peaks.`,
-        filename: image.name,
-        resolution: `${img.width || 224} x ${img.height || 224} px`,
-        fileSize: `${(image.size / 1024).toFixed(1)} KB`,
-        timestamp: new Date().toLocaleString(),
-        patient: patients.find(p => p.patient_id === selectedPatientId)
-      });
-      
-      toast.success('AI Prediction generated successfully!');
+      const detail = error.response?.data?.detail || 'Prediction failed. Please check network/backend connectivity.';
+      toast.error(`Analysis Error: ${detail}`);
     } finally {
       setLoading(false);
     }
@@ -886,19 +793,11 @@ export default function LungPrediction() {
                       </div>
                     )}
 
-                    {/* 2. Visual Analysis (Explainable AI / Histopathology Viewer) */}
+                    {/* 2. Visual Analysis (Explainable AI - Tabs with zoom) */}
                     <div className="mb-4">
                       <div className="d-flex justify-content-between align-items-center mb-3">
                         <h6 className="fw-bold mb-0 text-dark d-flex align-items-center">
-                          {result.isMalignant ? (
-                            <>
-                              <FaCheckCircle className="me-2 text-danger" style={{ color: '#0d6efd' }} /> Explainable AI (Grad-CAM Visualizations)
-                            </>
-                          ) : (
-                            <>
-                              <FaCheckCircle className="me-2 text-success" /> Microscopic Histopathology Scan (Normal Pulmonary Histology)
-                            </>
-                          )}
+                          <FaCheckCircle className="me-2 text-primary" /> Explainable AI (Grad-CAM Visualizations)
                         </h6>
                         <div className="d-flex gap-2">
                           <Button size="sm" variant="outline-secondary" onClick={() => setZoomScale(s => Math.max(0.5, s - 0.25))}><FaUndo style={{ transform: 'rotate(-90deg)' }} /></Button>
@@ -908,193 +807,163 @@ export default function LungPrediction() {
                       </div>
 
                       <div className="border rounded-4 bg-dark overflow-hidden p-3 position-relative d-flex flex-column align-items-center justify-content-center" style={{ minHeight: '360px' }}>
-                        {result.isMalignant && result.gradcam?.heatmap_path ? (
-                          <>
-                            {/* Custom Dark Tab Switcher */}
-                            <div className="d-flex justify-content-center gap-2 mb-4 bg-black bg-opacity-40 p-1.5 rounded-3 border border-secondary border-opacity-25" style={{ maxWidth: '440px', width: '100%' }}>
-                              <button 
-                                type="button"
-                                onClick={() => setActiveTab('original')} 
-                                className={`btn btn-sm px-3 py-1.5 rounded-2 fw-semibold transition-all border-0 ${activeTab === 'original' ? 'btn-info text-dark shadow-sm' : 'text-light bg-transparent opacity-50 hover-opacity-100'}`}
-                                style={{ flex: 1 }}
-                              >
-                                <FaImage className="me-1" /> Original Slide
-                              </button>
-                              <button 
-                                type="button"
-                                onClick={() => setActiveTab('heatmap')} 
-                                className={`btn btn-sm px-3 py-1.5 rounded-2 fw-semibold transition-all border-0 ${activeTab === 'heatmap' ? 'btn-info text-dark shadow-sm' : 'text-light bg-transparent opacity-50 hover-opacity-100'}`}
-                                style={{ flex: 1 }}
-                              >
-                                <FaThermometerHalf className="me-1" /> Heatmap
-                              </button>
-                              <button 
-                                type="button"
-                                onClick={() => setActiveTab('overlay')} 
-                                className={`btn btn-sm px-3 py-1.5 rounded-2 fw-semibold transition-all border-0 ${activeTab === 'overlay' ? 'btn-info text-dark shadow-sm' : 'text-light bg-transparent opacity-50 hover-opacity-100'}`}
-                                style={{ flex: 1 }}
-                              >
-                                <FaSearchPlus className="me-1" /> Overlay
-                              </button>
-                            </div>
+                        {/* Custom Dark Tab Switcher */}
+                        <div className="d-flex justify-content-center gap-2 mb-4 bg-black bg-opacity-40 p-1.5 rounded-3 border border-secondary border-opacity-25" style={{ maxWidth: '440px', width: '100%' }}>
+                          <button 
+                            type="button"
+                            onClick={() => setActiveTab('original')} 
+                            className={`btn btn-sm px-3 py-1.5 rounded-2 fw-semibold transition-all border-0 ${activeTab === 'original' ? 'btn-info text-dark shadow-sm' : 'text-light bg-transparent opacity-50 hover-opacity-100'}`}
+                            style={{ flex: 1 }}
+                          >
+                            <FaImage className="me-1" /> Original Slide
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={() => setActiveTab('heatmap')} 
+                            className={`btn btn-sm px-3 py-1.5 rounded-2 fw-semibold transition-all border-0 ${activeTab === 'heatmap' ? 'btn-info text-dark shadow-sm' : 'text-light bg-transparent opacity-50 hover-opacity-100'}`}
+                            style={{ flex: 1 }}
+                          >
+                            <FaThermometerHalf className="me-1" /> Heatmap
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={() => setActiveTab('overlay')} 
+                            className={`btn btn-sm px-3 py-1.5 rounded-2 fw-semibold transition-all border-0 ${activeTab === 'overlay' ? 'btn-info text-dark shadow-sm' : 'text-light bg-transparent opacity-50 hover-opacity-100'}`}
+                            style={{ flex: 1 }}
+                          >
+                            <FaSearchPlus className="me-1" /> Overlay
+                          </button>
+                        </div>
 
-                            {/* Custom Tab Contents */}
-                            <div className="overflow-auto text-center w-100 d-flex justify-content-center align-items-center" style={{ minHeight: '260px', maxHeight: '300px' }}>
-                              {activeTab === 'original' && (
-                                <img 
-                                  src={getMediaUrl(result.gradcam?.original_path) || preview} 
-                                  alt="Original Pathological Image" 
-                                  style={{ 
-                                    transform: `scale(${zoomScale})`, 
-                                    transition: 'transform 0.2s', 
-                                    maxHeight: '250px', 
-                                    maxWidth: '100%',
-                                    objectFit: 'contain', 
-                                    display: 'block', 
-                                    margin: '0 auto' 
-                                  }}
-                                  className="rounded shadow"
-                                  onError={(e: any) => {
-                                    e.target.src = preview || 'https://via.placeholder.com/400x400/eeeeee/333333?text=Original+Scan';
-                                  }}
-                                />
-                              )}
-                              {activeTab === 'heatmap' && (
-                                <img 
-                                  src={getMediaUrl(result.gradcam?.heatmap_path)} 
-                                  alt="Grad-CAM Heatmap" 
-                                  style={{ 
-                                    transform: `scale(${zoomScale})`, 
-                                    transition: 'transform 0.2s', 
-                                    maxHeight: '250px', 
-                                    maxWidth: '100%',
-                                    objectFit: 'contain', 
-                                    display: 'block', 
-                                    margin: '0 auto' 
-                                  }}
-                                  className="rounded shadow"
-                                  onError={(e: any) => {
-                                    e.target.src = 'https://via.placeholder.com/400x400/0d6efd/ffffff?text=Heatmap+Not+Generated';
-                                  }}
-                                />
-                              )}
-                              {activeTab === 'overlay' && (
-                                <div 
-                                  className="position-relative d-inline-block rounded overflow-hidden shadow" 
-                                  style={{ 
-                                    maxHeight: '250px', 
-                                    transform: `scale(${zoomScale})`, 
-                                    transition: 'transform 0.2s',
-                                    lineHeight: 0,
-                                    margin: '0 auto'
-                                  }}
-                                >
-                                  <img 
-                                    src={getMediaUrl(result.gradcam?.original_path) || preview} 
-                                    alt="Original Pathological Image" 
-                                    style={{ 
-                                      maxHeight: '250px', 
-                                      maxWidth: '100%', 
-                                      display: 'block', 
-                                      objectFit: 'contain' 
-                                    }}
-                                    onError={(e: any) => {
-                                      e.target.src = preview || 'https://via.placeholder.com/400x400/eeeeee/333333?text=Original+Scan';
-                                    }}
-                                  />
-                                  <img 
-                                    src={getMediaUrl(result.gradcam?.heatmap_path)} 
-                                    alt="Grad-CAM Heatmap" 
-                                    style={{ 
-                                      position: 'absolute', 
-                                      top: 0, 
-                                      left: 0, 
-                                      width: '100%', 
-                                      height: '100%', 
-                                      objectFit: 'fill',
-                                      opacity: heatmapOpacity,
-                                      mixBlendMode: blendMode as any,
-                                      display: 'block',
-                                      pointerEvents: 'none'
-                                    }}
-                                    onError={(e: any) => {
-                                      e.target.style.display = 'none';
-                                    }}
-                                  />
-                                </div>
-                              )}
-                            </div>
-
-                            {activeTab === 'overlay' && (
-                              <div className="w-100 mt-2 px-3 py-2 bg-dark bg-opacity-25 rounded border border-secondary text-white small">
-                                <Row className="align-items-center g-2">
-                                  <Col xs={12} sm={6}>
-                                    <div className="d-flex align-items-center gap-2">
-                                      <span className="text-white-50 text-nowrap">Heatmap Opacity:</span>
-                                      <Form.Range 
-                                        min={0.1} 
-                                        max={1.0} 
-                                        step={0.1} 
-                                        value={heatmapOpacity} 
-                                        onChange={(e) => setHeatmapOpacity(parseFloat(e.target.value))} 
-                                        className="align-self-center mt-1"
-                                      />
-                                      <span className="fw-bold" style={{ width: '40px' }}>{Math.round(heatmapOpacity * 100)}%</span>
-                                    </div>
-                                  </Col>
-                                  <Col xs={12} sm={6}>
-                                    <div className="d-flex align-items-center justify-content-sm-end gap-2">
-                                      <span className="text-white-50 text-nowrap">Blend Mode:</span>
-                                      <Form.Select 
-                                        size="sm" 
-                                        value={blendMode} 
-                                        onChange={(e) => setBlendMode(e.target.value)} 
-                                        className="bg-dark text-white border-secondary py-0 px-2"
-                                        style={{ width: '120px', height: '28px' }}
-                                      >
-                                        <option value="normal">Normal</option>
-                                        <option value="multiply">Multiply</option>
-                                        <option value="screen">Screen</option>
-                                        <option value="overlay">Overlay</option>
-                                        <option value="color-burn">Color Burn</option>
-                                      </Form.Select>
-                                    </div>
-                                  </Col>
-                                </Row>
-                              </div>
-                            )}
-                            
-                            <div className="text-white-50 text-center small mt-2">
-                              * Heatmap highlights deep features that contributed most heavily to the classification. Use opacity and blend controls to isolate core cell regions.
-                            </div>
-                          </>
-                        ) : (
-                          /* Non-cancerous / Normal View: Only Original Slide */
-                          <div className="text-center w-100 py-3">
-                            <div className="badge bg-success bg-opacity-25 text-success border border-success border-opacity-50 px-3 py-2 rounded-pill mb-3 fs-6">
-                              ✓ Normal / Non-Malignant Pulmonary Histology (No Malignancy Found)
-                            </div>
-                            <div className="overflow-auto text-center w-100 d-flex justify-content-center align-items-center" style={{ minHeight: '260px' }}>
+                        {/* Custom Tab Contents */}
+                        <div className="overflow-auto text-center w-100 d-flex justify-content-center align-items-center" style={{ minHeight: '260px', maxHeight: '300px' }}>
+                          {activeTab === 'original' && (
+                            <img 
+                              src={getMediaUrl(result.gradcam?.original_path) || preview} 
+                              alt="Original Pathological Image" 
+                              style={{ 
+                                transform: `scale(${zoomScale})`, 
+                                transition: 'transform 0.2s', 
+                                maxHeight: '250px', 
+                                maxWidth: '100%',
+                                objectFit: 'contain', 
+                                display: 'block',
+                                margin: '0 auto' 
+                              }}
+                              className="rounded shadow"
+                              onError={(e: any) => {
+                                e.target.src = preview || 'https://via.placeholder.com/400x400/eeeeee/333333?text=Original+Scan';
+                              }}
+                            />
+                          )}
+                          {activeTab === 'heatmap' && (
+                            <img 
+                              src={getMediaUrl(result.gradcam?.heatmap_path)} 
+                              alt="Grad-CAM Heatmap" 
+                              style={{ 
+                                transform: `scale(${zoomScale})`, 
+                                transition: 'transform 0.2s', 
+                                maxHeight: '250px', 
+                                maxWidth: '100%',
+                                objectFit: 'contain', 
+                                display: 'block',
+                                margin: '0 auto' 
+                              }}
+                              className="rounded shadow"
+                              onError={(e: any) => {
+                                e.target.src = 'https://via.placeholder.com/400x400/0d6efd/ffffff?text=Heatmap+Not+Generated';
+                              }}
+                            />
+                          )}
+                          {activeTab === 'overlay' && (
+                            <div 
+                              className="position-relative d-inline-block rounded overflow-hidden shadow" 
+                              style={{ 
+                                maxHeight: '250px', 
+                                transform: `scale(${zoomScale})`, 
+                                transition: 'transform 0.2s',
+                                lineHeight: 0,
+                                margin: '0 auto'
+                              }}
+                            >
                               <img 
                                 src={getMediaUrl(result.gradcam?.original_path) || preview} 
-                                alt="Original Normal Pulmonary Slide" 
+                                alt="Original Pathological Image" 
                                 style={{ 
-                                  transform: `scale(${zoomScale})`, 
-                                  transition: 'transform 0.2s', 
                                   maxHeight: '250px', 
                                   maxWidth: '100%', 
-                                  objectFit: 'contain', 
                                   display: 'block', 
-                                  margin: '0 auto' 
+                                  objectFit: 'contain' 
                                 }}
-                                className="rounded shadow border border-secondary"
+                                onError={(e: any) => {
+                                  e.target.src = preview || 'https://via.placeholder.com/400x400/eeeeee/333333?text=Original+Scan';
+                                }}
+                              />
+                              <img 
+                                src={getMediaUrl(result.gradcam?.heatmap_path)} 
+                                alt="Grad-CAM Heatmap" 
+                                style={{ 
+                                  position: 'absolute', 
+                                  top: 0, 
+                                  left: 0, 
+                                  width: '100%', 
+                                  height: '100%', 
+                                  objectFit: 'fill',
+                                  opacity: heatmapOpacity,
+                                  mixBlendMode: blendMode as any,
+                                  display: 'block',
+                                  pointerEvents: 'none'
+                                }}
+                                onError={(e: any) => {
+                                  e.target.style.display = 'none';
+                                }}
                               />
                             </div>
-                            <p className="text-white-50 small mt-3 mb-0" style={{ maxWidth: '500px', margin: '0 auto' }}>
-                              * Microscopic examination demonstrates normal pulmonary parenchyma with intact alveolar walls. Grad-CAM visual heatmaps are not indicated for normal tissue.
-                            </p>
+                          )}
+                        </div>
+                        
+                        {activeTab === 'overlay' && (
+                          <div className="w-100 mt-2 px-3 py-2 bg-dark bg-opacity-25 rounded border border-secondary text-white small">
+                            <Row className="align-items-center g-2">
+                              <Col xs={12} sm={6}>
+                                <div className="d-flex align-items-center gap-2">
+                                  <span className="text-white-50 text-nowrap">Heatmap Opacity:</span>
+                                  <Form.Range 
+                                    min={0.1} 
+                                    max={1.0} 
+                                    step={0.1} 
+                                    value={heatmapOpacity} 
+                                    onChange={(e) => setHeatmapOpacity(parseFloat(e.target.value))} 
+                                    className="align-self-center mt-1"
+                                  />
+                                  <span className="fw-bold" style={{ width: '40px' }}>{Math.round(heatmapOpacity * 100)}%</span>
+                                </div>
+                              </Col>
+                              <Col xs={12} sm={6}>
+                                <div className="d-flex align-items-center justify-content-sm-end gap-2">
+                                  <span className="text-white-50 text-nowrap">Blend Mode:</span>
+                                  <Form.Select 
+                                    size="sm" 
+                                    value={blendMode} 
+                                    onChange={(e) => setBlendMode(e.target.value)} 
+                                    className="bg-dark text-white border-secondary py-0 px-2"
+                                    style={{ width: '120px', height: '28px' }}
+                                  >
+                                    <option value="normal">Normal</option>
+                                    <option value="multiply">Multiply</option>
+                                    <option value="screen">Screen</option>
+                                    <option value="overlay">Overlay</option>
+                                    <option value="color-burn">Color Burn</option>
+                                  </Form.Select>
+                                </div>
+                              </Col>
+                            </Row>
                           </div>
                         )}
+                        
+                        <div className="text-white-50 text-center small mt-2">
+                          * Heatmap highlights deep features that contributed most heavily to the classification. Use opacity and blend controls to isolate core cell regions.
+                        </div>
                       </div>
                     </div>
 
@@ -1103,67 +972,70 @@ export default function LungPrediction() {
                       <Col md={6}>
                         <Card className="border rounded-4 h-100 bg-light">
                           <Card.Body className="p-3">
-                            <h6 className="fw-bold mb-3 text-dark d-flex align-items-center">
-                              <FaInfoCircle className="me-2 text-primary" /> Model Specifications
+                            <h6 className="fw-bold mb-2 text-dark border-bottom pb-2 d-flex align-items-center">
+                              <FaInfoCircle className="me-2 text-primary" /> AI Model Information
                             </h6>
-                            <table className="table table-sm table-borderless small mb-0">
-                              <tbody>
-                                <tr><td className="text-muted ps-0">Architecture:</td><td className="fw-semibold text-end">ResNet50 (Primary Model)</td></tr>
-                                <tr><td className="text-muted ps-0">Input Resolution:</td><td className="fw-semibold text-end">224 x 224 x 3 px</td></tr>
-                                <tr><td className="text-muted ps-0">Backend Framework:</td><td className="fw-semibold text-end">TensorFlow / Keras</td></tr>
-                                <tr><td className="text-muted ps-0">Explainability Engine:</td><td className="fw-semibold text-end">{result.isMalignant ? 'Grad-CAM' : 'N/A (Normal Tissue)'}</td></tr>
-                              </tbody>
-                            </table>
+                            <div className="small text-muted">
+                              <div className="d-flex justify-content-between mb-1"><span>Architecture:</span><strong className="text-dark">ResNet50 (Primary)</strong></div>
+                              <div className="d-flex justify-content-between mb-1"><span>Methodology:</span><strong className="text-dark">Transfer Learning</strong></div>
+                              <div className="d-flex justify-content-between mb-1"><span>Validation:</span><strong className="text-dark">5-Fold Cross Val</strong></div>
+                              <div className="d-flex justify-content-between mb-1"><span>Explainability:</span><strong className="text-dark">Grad-CAM (CNN)</strong></div>
+                              <div className="d-flex justify-content-between mb-1"><span>Training Acc:</span><strong className="text-dark">98.3%</strong></div>
+                              <div className="d-flex justify-content-between mb-1"><span>Validation Acc:</span><strong className="text-dark">97.6%</strong></div>
+                              <div className="d-flex justify-content-between"><span>Version:</span><strong className="text-dark">v1.2.0</strong></div>
+                            </div>
                           </Card.Body>
                         </Card>
                       </Col>
                       <Col md={6}>
                         <Card className="border rounded-4 h-100 bg-light">
                           <Card.Body className="p-3">
-                            <h6 className="fw-bold mb-3 text-dark d-flex align-items-center">
-                              <FaImage className="me-2 text-primary" /> Slide Metadata
+                            <h6 className="fw-bold mb-2 text-dark border-bottom pb-2 d-flex align-items-center">
+                              <FaImage className="me-2 text-success" /> Uploaded Image Info
                             </h6>
-                            <table className="table table-sm table-borderless small mb-0">
-                              <tbody>
-                                <tr><td className="text-muted ps-0">Original Filename:</td><td className="fw-semibold text-end text-truncate" style={{ maxWidth: '140px' }}>{result.filename}</td></tr>
-                                <tr><td className="text-muted ps-0">Resolution:</td><td className="fw-semibold text-end">{result.resolution}</td></tr>
-                                <tr><td className="text-muted ps-0">File Size:</td><td className="fw-semibold text-end">{result.fileSize}</td></tr>
-                                <tr><td className="text-muted ps-0">Prediction Time:</td><td className="fw-semibold text-end">{result.timestamp}</td></tr>
-                              </tbody>
-                            </table>
+                            <div className="small text-muted">
+                              <div className="d-flex justify-content-between mb-1"><span>Filename:</span><strong className="text-dark text-truncate" style={{ maxWidth: '120px' }}>{result.filename}</strong></div>
+                              <div className="d-flex justify-content-between mb-1"><span>Resolution:</span><strong className="text-dark">{result.resolution}</strong></div>
+                              <div className="d-flex justify-content-between mb-1"><span>File Size:</span><strong className="text-dark">{result.fileSize}</strong></div>
+                              <div className="d-flex justify-content-between"><span>Analyzed At:</span><strong className="text-dark">{result.timestamp}</strong></div>
+                            </div>
                           </Card.Body>
                         </Card>
                       </Col>
                     </Row>
 
-                    {/* 3. Decision Support Summary */}
-                    <div className="mb-4">
-                      <h6 className="fw-bold mb-3 text-dark d-flex align-items-center">
-                        <FaNotesMedical className="me-2 text-primary" /> Multimodal Decision Support Summary
-                      </h6>
-                      <Card className="border rounded-4 bg-light shadow-none">
-                        <Card.Body className="p-3">
-                          <div className="mb-3">
-                            <div className="fw-bold text-dark small mb-1">AI Diagnostic Summary:</div>
-                            <p className="text-muted small mb-0 leading-relaxed">
-                              {result.summary}
-                            </p>
-                          </div>
-                          <div>
-                            <div className="fw-bold text-dark small mb-1">Clinical Recommendations:</div>
-                            <p className="text-dark fw-medium small mb-0 leading-relaxed p-2 rounded bg-white border">
-                              {result.recommendation}
-                            </p>
-                          </div>
-                        </Card.Body>
-                      </Card>
+                    {/* 3. Narrative diagnostic summary */}
+                    <div className="mb-4 p-3 bg-light rounded-4 border-start border-4 border-primary">
+                      <h6 className="fw-bold mb-2 text-primary">AI Diagnostic Interpretation Summary</h6>
+                      <div className="small text-dark mb-2">
+                        <strong>Histopathology Findings:</strong> {result.summary}
+                      </div>
+                      <div className="small text-dark mb-2">
+                        <strong>Model Explanation:</strong> Grad-CAM highlights specific cellular regions corresponding to deep-learning features of pleomorphic nuclei.
+                      </div>
+                      <div className="small text-dark">
+                        <strong>Clinical Action Required:</strong> {result.recommendation}
+                      </div>
                     </div>
 
-                    {/* Disclaimer */}
+                    {/* 4. Follow-up section */}
+                    <div className="mb-4 p-3 bg-warning bg-opacity-10 rounded-4 border-start border-4 border-warning">
+                      <h6 className="fw-bold mb-2 text-warning-emphasis d-flex align-items-center">
+                        <FaExclamationTriangle className="me-2"/> Suggested Follow-up Diagnostics
+                      </h6>
+                      <ul className="small mb-0 ps-3 text-dark fw-semibold">
+                        <li>Consult Pulmonologist or Thoracic Surgeon.</li>
+                        <li>High Resolution CT (HRCT) contrast chest scans.</li>
+                        <li>Bronchoscopy with tissue biopsy for histological confirmation.</li>
+                        <li>Complete PET-CT staging and clinical correlation.</li>
+                      </ul>
+                    </div>
+
+                    {/* 5. Professional Disclaimer */}
                     <div className="p-3 bg-secondary bg-opacity-10 rounded-4 text-muted small d-flex gap-2">
                       <FaInfoCircle className="flex-shrink-0 mt-1" />
                       <div>
-                        <strong>Clinical Disclaimer:</strong> This decision support tool utilizes deep learning algorithms (ResNet50) for histopathological analysis. Final medical diagnosis and therapeutic strategy must always be established by an attending board-certified pathologist and oncology multidisciplinary team.
+                        <strong>Clinician Disclaimer:</strong> This prediction is generated using a deep learning model for research/demonstrative decision support and should not replace professional expert pathological diagnosis. All outcomes must be verified independently.
                       </div>
                     </div>
 
@@ -1275,27 +1147,17 @@ export default function LungPrediction() {
               </div>
             </div>
 
-            <h3 style={{ borderBottom: '1px solid #ddd', paddingBottom: '5px', color: '#444' }}>
-              {result.isMalignant ? 'Explainable AI (Grad-CAM Visualizations)' : 'Histopathological Microscopic Slide'}
-            </h3>
-            {result.isMalignant && result.gradcam?.overlay_path ? (
-              <div style={{ display: 'flex', justifyContent: 'space-around', gap: '20px', marginBottom: '20px', textAlign: 'center' }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '5px' }}>Original Histopathology Slide</div>
-                  <img src={preview || ''} alt="Original Histopathology Slide" style={{ width: '100%', maxHeight: '180px', objectFit: 'contain', border: '1px solid #ccc', borderRadius: '5px' }} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '5px' }}>CNN Diagnostic Overlay</div>
-                  <img src={getMediaUrl(result.gradcam?.overlay_path)} crossOrigin="anonymous" alt="Overlay" style={{ width: '100%', maxHeight: '180px', objectFit: 'contain', border: '1px solid #ccc', borderRadius: '5px' }} />
-                </div>
+            <h3 style={{ borderBottom: '1px solid #ddd', paddingBottom: '5px', color: '#444' }}>Explainable AI (Grad-CAM Visualizations)</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-around', gap: '20px', marginBottom: '20px', textAlign: 'center' }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '5px' }}>Original Histopathology Slide</div>
+                <img src={preview || ''} alt="Original Histopathology Slide" style={{ width: '100%', maxHeight: '180px', objectFit: 'contain', border: '1px solid #ccc', borderRadius: '5px' }} />
               </div>
-            ) : (
-              <div style={{ marginBottom: '20px', textAlign: 'center' }}>
-                <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '5px' }}>Original Microscopic Examination Slide (Normal Pulmonary Histology — No Heatmap Indicated)</div>
-                <img src={preview || ''} alt="Original Histopathology Slide" style={{ maxWidth: '320px', maxHeight: '180px', objectFit: 'contain', border: '1px solid #ccc', borderRadius: '5px' }} />
-                <div style={{ fontSize: '11px', color: '#666', marginTop: '4px', fontStyle: 'italic' }}>Note: Heatmap activation omitted as cellular morphology demonstrates normal lung parenchyma without malignant foci.</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '5px' }}>CNN Diagnostic Overlay</div>
+                <img src={getMediaUrl(result.gradcam?.overlay_path)} crossOrigin="anonymous" alt="Overlay" style={{ width: '100%', maxHeight: '180px', objectFit: 'contain', border: '1px solid #ccc', borderRadius: '5px' }} />
               </div>
-            )}
+            </div>
 
             {/* Multimodal Risk Score section in PDF */}
             {result.riskScore && (

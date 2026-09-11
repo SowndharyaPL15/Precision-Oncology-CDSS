@@ -7,17 +7,14 @@ class PatientRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def create_patient(self, doctor_id: str, full_name: str, age: int, gender: str, patient_id: str = None, **kwargs) -> Patient:
-        init_kwargs = {
-            "doctor_id": doctor_id,
-            "full_name": full_name,
-            "age": age,
-            "gender": gender,
+    async def create_patient(self, doctor_id: str, full_name: str, age: int, gender: str, **kwargs) -> Patient:
+        patient = Patient(
+            doctor_id=doctor_id,
+            full_name=full_name,
+            age=age,
+            gender=gender,
             **kwargs
-        }
-        if patient_id:
-            init_kwargs["patient_id"] = patient_id
-        patient = Patient(**init_kwargs)
+        )
         self.session.add(patient)
         await self.session.commit()
         await self.session.refresh(patient)

@@ -6,26 +6,16 @@ import tensorflow as tf
 from tensorflow.keras.models import load_model
 
 class GradCAMGenerator:
-    def __init__(self, model_or_path, class_names):
+    def __init__(self, model_path, class_names):
         """
         Initializes the GradCAM generator.
         
         Args:
-            model_or_path: Loaded tf.keras.Model or path string to the trained .keras model.
+            model_path: Path to the trained .keras model.
             class_names: List of class names corresponding to output indices.
         """
-        if isinstance(model_or_path, str):
-            print(f"[INFO] Loading model from {model_or_path}...")
-            try:
-                self.model = load_model(model_or_path, compile=False, safe_mode=False)
-            except Exception:
-                try:
-                    self.model = load_model(model_or_path, compile=False)
-                except Exception:
-                    self.model = load_model(model_or_path)
-        else:
-            self.model = model_or_path
-
+        print(f"[INFO] Loading model from {model_path}...")
+        self.model = load_model(model_path)
         self.class_names = class_names
         self.base_model, self.classifier_layers = self._extract_submodels()
         self.last_conv_layer_name = self._find_last_conv_layer(self.model)
@@ -132,7 +122,7 @@ class GradCAMGenerator:
 
         return heatmap.numpy(), preds.numpy()[0], int(pred_index)
 
-    def generate_and_save(self, img_path, save_dir, target_class=None, true_label=None):
+    def generate_and_save(self, img_path, save_dir, true_label=None):
         """Generates Grad-CAM for an image and saves the results with morphological tissue refinement."""
         os.makedirs(save_dir, exist_ok=True)
         img_name = os.path.basename(img_path).split('.')[0]
@@ -143,26 +133,12 @@ class GradCAMGenerator:
         img_array_scaled = img_array / 255.0
         img_array_batch = np.expand_dims(img_array_scaled, axis=0)
         
-        # Determine target class index
-        target_idx = None
-        if target_class and target_class in self.class_names:
-            target_idx = self.class_names.index(target_class)
-
         # Generate raw deep convolutional heatmap
-        heatmap, preds, pred_index = self.get_gradcam_heatmap(img_array_batch, pred_index=target_idx)
+        heatmap, preds, pred_index = self.get_gradcam_heatmap(img_array_batch)
         pred_index = int(pred_index)
         
-        predicted_class = target_class if (target_class and target_class in self.class_names) else self.class_names[pred_index]
-        raw_conf = float(preds[pred_index])
-        
-        # Clinical Confidence Calibration: scale smoothly into [86.5%, 96.8%]
-        deterministic_boost = (sum(ord(c) for c in img_name.lower()) % 65) / 1000.0
-        calibrated_conf = float(np.clip(
-            0.880 + (raw_conf - 0.5) * 0.10 + deterministic_boost,
-            0.865,
-            0.968
-        ))
-        confidence = round(calibrated_conf, 4)
+        predicted_class = self.class_names[pred_index]
+        confidence = float(preds[pred_index])
         
         # Load original image for visualization
         orig_img = cv2.imread(img_path)
