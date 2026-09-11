@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FaCloudUploadAlt, FaRibbon, FaFilePdf, FaSave, FaUndo, FaCheckCircle, 
   FaExclamationTriangle, FaInfoCircle, FaImage, FaSearchPlus,
-  FaFileMedical, FaUserCheck, FaDna, FaThermometerHalf, FaCheck
+  FaFileMedical, FaUserCheck, FaDna, FaThermometerHalf, FaCheck, FaNotesMedical
 } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import apiClient, { getMediaUrl } from '../../api/client';
