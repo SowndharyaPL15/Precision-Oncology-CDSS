@@ -892,12 +892,20 @@ export default function BreastPrediction() {
                         </div>
 
                         {/* Custom Tab Contents */}
-                        <div className="overflow-auto text-center w-100" style={{ maxHeight: '300px' }}>
+                        <div className="overflow-auto text-center w-100 d-flex justify-content-center align-items-center" style={{ minHeight: '260px', maxHeight: '300px' }}>
                           {activeTab === 'original' && (
                             <img 
-                              src={getMediaUrl(result.gradcam?.original_path)} 
+                              src={getMediaUrl(result.gradcam?.original_path) || preview} 
                               alt="Original Pathological Image" 
-                              style={{ transform: `scale(${zoomScale})`, transition: 'transform 0.2s', maxHeight: '250px', objectFit: 'contain' }}
+                              style={{ 
+                                transform: `scale(${zoomScale})`, 
+                                transition: 'transform 0.2s', 
+                                maxHeight: '250px', 
+                                maxWidth: '100%',
+                                objectFit: 'contain', 
+                                display: 'block',
+                                margin: '0 auto' 
+                              }}
                               className="rounded shadow"
                               onError={(e: any) => {
                                 e.target.src = preview || 'https://via.placeholder.com/400x400/eeeeee/333333?text=Original+Scan';
@@ -908,7 +916,15 @@ export default function BreastPrediction() {
                             <img 
                               src={getMediaUrl(result.gradcam?.heatmap_path)} 
                               alt="Grad-CAM Heatmap" 
-                              style={{ transform: `scale(${zoomScale})`, transition: 'transform 0.2s', maxHeight: '250px', objectFit: 'contain' }}
+                              style={{ 
+                                transform: `scale(${zoomScale})`, 
+                                transition: 'transform 0.2s', 
+                                maxHeight: '250px', 
+                                maxWidth: '100%',
+                                objectFit: 'contain', 
+                                display: 'block',
+                                margin: '0 auto' 
+                              }}
                               className="rounded shadow"
                               onError={(e: any) => {
                                 e.target.src = 'https://via.placeholder.com/400x400/d63384/ffffff?text=Heatmap+Not+Generated';
@@ -916,11 +932,25 @@ export default function BreastPrediction() {
                             />
                           )}
                           {activeTab === 'overlay' && (
-                            <div className="position-relative d-inline-block rounded overflow-hidden shadow" style={{ maxHeight: '250px', transform: `scale(${zoomScale})`, transition: 'transform 0.2s' }}>
+                            <div 
+                              className="position-relative d-inline-block rounded overflow-hidden shadow" 
+                              style={{ 
+                                maxHeight: '250px', 
+                                transform: `scale(${zoomScale})`, 
+                                transition: 'transform 0.2s',
+                                lineHeight: 0,
+                                margin: '0 auto'
+                              }}
+                            >
                               <img 
-                                src={getMediaUrl(result.gradcam?.original_path)} 
+                                src={getMediaUrl(result.gradcam?.original_path) || preview} 
                                 alt="Original Pathological Image" 
-                                style={{ maxHeight: '250px', objectFit: 'contain' }}
+                                style={{ 
+                                  maxHeight: '250px', 
+                                  maxWidth: '100%', 
+                                  display: 'block', 
+                                  objectFit: 'contain' 
+                                }}
                                 onError={(e: any) => {
                                   e.target.src = preview || 'https://via.placeholder.com/400x400/eeeeee/333333?text=Original+Scan';
                                 }}
@@ -934,9 +964,11 @@ export default function BreastPrediction() {
                                   left: 0, 
                                   width: '100%', 
                                   height: '100%', 
-                                  objectFit: 'contain',
+                                  objectFit: 'fill',
                                   opacity: heatmapOpacity,
-                                  mixBlendMode: blendMode as any
+                                  mixBlendMode: blendMode as any,
+                                  display: 'block',
+                                  pointerEvents: 'none'
                                 }}
                                 onError={(e: any) => {
                                   e.target.style.display = 'none';

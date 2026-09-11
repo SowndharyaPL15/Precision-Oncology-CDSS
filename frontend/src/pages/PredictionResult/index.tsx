@@ -291,10 +291,10 @@ export default function PredictionResult() {
                     <Tab eventKey="original" title={<span className="text-white small px-2"><FaImage className="me-1"/> Original Scan</span>}>
                       <div className="overflow-auto text-center" style={{ maxHeight: '300px' }}>
                         <img 
-                          src={getMediaUrl(gradcam?.original_path)} 
+                          src={getMediaUrl(gradcam?.original_path) || preview} 
                           crossOrigin="anonymous"
                           alt="Original Pathological Image" 
-                          style={{ transform: `scale(${zoomScale})`, transition: 'transform 0.2s', maxHeight: '250px', objectFit: 'contain' }}
+                          style={{ transform: `scale(${zoomScale})`, transition: 'transform 0.2s', maxHeight: '250px', maxWidth: '100%', objectFit: 'contain', display: 'block', margin: '0 auto' }}
                           className="rounded shadow"
                           onError={(e: any) => {
                             e.target.src = preview || 'https://via.placeholder.com/400x400/eeeeee/333333?text=Original+Scan';
@@ -308,7 +308,7 @@ export default function PredictionResult() {
                           src={getMediaUrl(gradcam?.heatmap_path)} 
                           crossOrigin="anonymous"
                           alt="Grad-CAM Heatmap" 
-                          style={{ transform: `scale(${zoomScale})`, transition: 'transform 0.2s', maxHeight: '250px', objectFit: 'contain' }}
+                          style={{ transform: `scale(${zoomScale})`, transition: 'transform 0.2s', maxHeight: '250px', maxWidth: '100%', objectFit: 'contain', display: 'block', margin: '0 auto' }}
                           className="rounded shadow"
                           onError={(e: any) => {
                             e.target.src = 'https://via.placeholder.com/400x400/d63384/ffffff?text=Heatmap+Not+Generated';
@@ -322,7 +322,7 @@ export default function PredictionResult() {
                           src={getMediaUrl(gradcam?.overlay_path)} 
                           crossOrigin="anonymous"
                           alt="Grad-CAM Overlay" 
-                          style={{ transform: `scale(${zoomScale})`, transition: 'transform 0.2s', maxHeight: '250px', objectFit: 'contain' }}
+                          style={{ transform: `scale(${zoomScale})`, transition: 'transform 0.2s', maxHeight: '250px', maxWidth: '100%', objectFit: 'contain', display: 'block', margin: '0 auto' }}
                           className="rounded shadow"
                           onError={(e: any) => {
                             e.target.src = 'https://via.placeholder.com/400x400/222222/ffffff?text=Overlay+Not+Available';

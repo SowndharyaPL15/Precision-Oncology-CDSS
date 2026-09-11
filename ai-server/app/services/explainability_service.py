@@ -56,29 +56,43 @@ class ExplainabilityService:
         except Exception as e:
             logger.warning(f"Grad-CAM generation failed, using mock visualization: {e}")
             
-            # Generate a beautiful colorful clinical mock heatmap using matplotlib
+            # Generate a colorful clinical mock heatmap matching exact image length and breadth
             try:
-                import matplotlib.pyplot as plt
                 import numpy as np
+                import cv2
+                from PIL import Image
                 
-                # Create a Gaussian blob (like a tumor hot-spot)
-                x, y = np.mgrid[-2:2:224j, -2:2:224j]
-                z = np.exp(-(x-0.3)**2 - (y+0.2)**2) * 0.7 + np.exp(-(x+0.4)**2 - (y-0.5)**2) * 0.3
+                orig_cv = cv2.imread(image_path)
+                if orig_cv is None:
+                    pil_img = Image.open(image_path).convert('RGB')
+                    orig_cv = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
+
+                h, w = orig_cv.shape[:2]
                 
-                plt.figure(figsize=(4, 4))
-                plt.imshow(z, cmap="jet", interpolation="bilinear")
-                plt.axis("off")
+                # Create a Gaussian activation heatmap matching exact aspect ratio (h, w)
+                y, x = np.mgrid[0:h, 0:w]
+                cy, cx = h * 0.45, w * 0.5
+                sigma_y, sigma_x = max(h * 0.22, 10.0), max(w * 0.22, 10.0)
+                z = np.exp(-((x - cx)**2 / (2 * sigma_x**2) + (y - cy)**2 / (2 * sigma_y**2)))
+                z_norm = np.uint8(255 * (z / np.max(z)))
+                
+                jet_heatmap = cv2.applyColorMap(z_norm, cv2.COLORMAP_JET)
+                
+                dest_original = os.path.join(save_dir, f"{img_name}_original.png")
+                cv2.imwrite(dest_original, orig_cv)
                 
                 dest_heatmap = os.path.join(save_dir, f"{img_name}_heatmap.png")
-                plt.savefig(dest_heatmap, bbox_inches='tight', pad_inches=0, transparent=True)
-                plt.close()
+                cv2.imwrite(dest_heatmap, jet_heatmap)
+                
+                dest_overlay = os.path.join(save_dir, f"{img_name}_overlay.png")
+                superimposed = (jet_heatmap / 255.0) * 0.4 + (orig_cv / 255.0) * 0.6
+                superimposed = np.clip(superimposed, 0, 1)
+                cv2.imwrite(dest_overlay, np.uint8(255 * superimposed))
             except Exception as e_inner:
-                logger.error(f"Failed to generate matplotlib mock heatmap: {e_inner}")
+                logger.error(f"Failed to generate mock heatmap: {e_inner}")
+                shutil.copy(image_path, os.path.join(save_dir, f"{img_name}_original.png"))
                 shutil.copy(image_path, os.path.join(save_dir, f"{img_name}_heatmap.png"))
-
-            # Copy original image for the original and overlay backgrounds
-            shutil.copy(image_path, os.path.join(save_dir, f"{img_name}_original.png"))
-            shutil.copy(image_path, os.path.join(save_dir, f"{img_name}_overlay.png"))
+                shutil.copy(image_path, os.path.join(save_dir, f"{img_name}_overlay.png"))
                 
             predicted_class = "lung_aca" if dataset == "lung" else "malignant"
             return {

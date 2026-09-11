@@ -187,24 +187,29 @@ class GradCAMGenerator:
         predicted_class = self.class_names[pred_index]
         confidence = float(preds[pred_index])
         
-        # Save original image
+        # Save original image with its original dimensions
         orig_img = cv2.imread(img_path)
-        orig_img = cv2.resize(orig_img, (224, 224))
+        if orig_img is None:
+            from PIL import Image
+            pil_img = Image.open(img_path).convert('RGB')
+            orig_img = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
+            
+        h, w = orig_img.shape[:2]
         
         orig_save_path = os.path.join(save_dir, f"{img_name}_original.png")
         cv2.imwrite(orig_save_path, orig_img)
         
-        # Create and save heatmap
-        heatmap_resized = cv2.resize(heatmap, (orig_img.shape[1], orig_img.shape[0]))
+        # Create and save heatmap with exact same length and breadth (w, h)
+        heatmap_resized = cv2.resize(heatmap, (w, h))
         heatmap_uint8 = np.uint8(255 * heatmap_resized)
         
-        # Apply colormap using OpenCV directly instead of matplotlib
+        # Apply colormap using OpenCV directly
         jet_heatmap = cv2.applyColorMap(heatmap_uint8, cv2.COLORMAP_JET)
         
         heatmap_save_path = os.path.join(save_dir, f"{img_name}_heatmap.png")
         cv2.imwrite(heatmap_save_path, jet_heatmap)
         
-        # Superimpose
+        # Superimpose matching exact original dimensions
         superimposed_img = (jet_heatmap / 255.0) * 0.4 + (orig_img / 255.0) * 0.6
         superimposed_img = np.clip(superimposed_img, 0, 1)
         
