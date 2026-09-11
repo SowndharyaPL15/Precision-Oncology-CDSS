@@ -29,10 +29,11 @@ datasets/lungs/
 
 # Model Checkpoints and weights
 models/checkpoints/*
-models/saved_models/*
-!models/.gitkeep
+!models/checkpoints/.gitkeep
+!models/saved_models/.gitkeep
+!models/**/*.keras
+!models/*.keras
 *.h5
-*.keras
 *.pb
 *.pt
 *.pth
