@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Smart backend API URL resolver:
 // 1. If explicit VITE_API_URL is configured, use it.
-// 2. If running in browser on production (e.g. on Render, Vercel, or custom domain), default to current origin.
+// 2. If running on precision-oncology-frontend.onrender.com (or any *-frontend domain), route to precision-oncology-backend.onrender.com.
 // 3. If running locally on localhost/127.0.0.1, default to port 8005.
 const getBackendUrl = (): string => {
   const envUrl = import.meta.env.VITE_API_URL;
@@ -13,6 +13,15 @@ const getBackendUrl = (): string => {
   if (typeof window !== 'undefined' && window.location) {
     const hostname = window.location.hostname;
     if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
+      if (hostname.includes('precision-oncology-frontend')) {
+        return 'https://precision-oncology-backend.onrender.com';
+      }
+      if (hostname.includes('-frontend.onrender.com')) {
+        return `https://${hostname.replace('-frontend.onrender.com', '-backend.onrender.com')}`;
+      }
+      if (hostname.includes('vercel.app') || hostname.includes('netlify.app') || hostname.includes('github.io')) {
+        return 'https://precision-oncology-backend.onrender.com';
+      }
       return window.location.origin;
     }
   }
