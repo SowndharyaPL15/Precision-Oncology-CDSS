@@ -1,4 +1,6 @@
 import os
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 import time
 import numpy as np
 import tensorflow as tf
@@ -6,6 +8,12 @@ from PIL import Image
 from app.core.config import settings
 from app.core.logging import logger
 from app.processing.histopathology_validator import validate_histopathology_image
+
+try:
+    tf.config.threading.set_inter_op_parallelism_threads(2)
+    tf.config.threading.set_intra_op_parallelism_threads(2)
+except Exception:
+    pass
 
 class InferenceService:
     def __init__(self):
@@ -16,6 +24,19 @@ class InferenceService:
             "lung": ["lung_aca", "lung_n", "lung_scc"],
             "breast": ["benign", "malignant"]
         }
+
+    def prewarm(self):
+        """Pre-warms primary models in background thread so user requests execute instantly without cold start."""
+        logger.info("[STARTUP] Pre-warming models for zero cold-start inference...")
+        for dataset in ["lung", "breast"]:
+            for model_name in ["densenet121", "resnet50"]:
+                try:
+                    m = self.load_model(model_name, dataset)
+                    dummy = np.zeros((1, 224, 224, 3), dtype=np.float32)
+                    _ = m(dummy, training=False)
+                    logger.info(f"[STARTUP] Model {model_name} on {dataset} pre-warmed successfully.")
+                except Exception as e:
+                    logger.debug(f"[STARTUP] Pre-warm note for {model_name} on {dataset}: {e}")
 
     def _get_model_path(self, model_name: str, dataset: str) -> str:
         """Resolves the path to the best available model file across candidate paths."""

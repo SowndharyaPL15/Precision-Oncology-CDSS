@@ -135,6 +135,14 @@ async def startup_db():
     except Exception as e:
         print(f"[WARNING] Startup database setup warning: {e}")
 
+    # Launch model pre-warming in background thread so server becomes responsive immediately
+    try:
+        import threading
+        from app.services.inference_service import inference_service
+        threading.Thread(target=inference_service.prewarm, daemon=True).start()
+    except Exception as e_pw:
+        print(f"[WARNING] Pre-warm thread launch note: {e_pw}")
+
 if __name__ == "__main__":
     import os
     import uvicorn

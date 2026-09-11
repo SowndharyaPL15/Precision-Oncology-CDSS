@@ -25,9 +25,9 @@ class PredictionResponse(BaseModel):
 class GradCamResponse(BaseModel):
     predicted_class: str
     confidence: float
-    heatmap_path: str
-    overlay_path: str
-    original_path: str
+    heatmap_path: Optional[str] = None
+    overlay_path: Optional[str] = None
+    original_path: Optional[str] = None
 
 class ReportResponse(BaseModel):
     patient_info: Optional[Dict[str, Any]] = None

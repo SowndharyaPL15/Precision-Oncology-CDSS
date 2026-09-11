@@ -68,15 +68,14 @@ class GradCAMGenerator:
         img_tensor = tf.cast(img_array, tf.float32)
         
         if self.base_model is not None:
+            # 1. Forward pass through base convolutional backbone outside tape (no memory-heavy graph recording)
+            conv_outputs = self.base_model(img_tensor, training=False)
             with tf.GradientTape() as tape:
-                # 1. Forward pass through base convolutional backbone
-                conv_outputs = self.base_model(img_tensor)
                 tape.watch(conv_outputs)
-                
-                # 2. Forward pass through classification head
+                # 2. Forward pass through classification head only
                 x = conv_outputs
                 for layer in self.classifier_layers:
-                    x = layer(x)
+                    x = layer(x, training=False)
                 preds = x
                 
                 if pred_index is None:
