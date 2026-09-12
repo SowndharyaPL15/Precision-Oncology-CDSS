@@ -20,6 +20,7 @@ class InferenceService:
     def __init__(self):
         # Dictionary to cache models in memory: {(model_name, dataset): loaded_model}
         self.loaded_models = {}
+        self.tflite_interpreters = {}
         
         self.class_maps = {
             "lung": ["lung_aca", "lung_n", "lung_scc"],
@@ -78,6 +79,62 @@ class InferenceService:
                         return fpath
         
         raise FileNotFoundError(f"No trained model found for {model_name} on {dataset}. Checked paths: {candidate_dirs}")
+
+    def _get_tflite_path(self, model_name: str, dataset: str) -> str:
+        """Finds any available quantized TFLite file for the given model architecture."""
+        m_name = model_name.lower().strip()
+        if "dense" in m_name:
+            m_name = "densenet121"
+        elif "resnet" in m_name:
+            m_name = "resnet50"
+        elif "efficient" in m_name:
+            m_name = "efficientnet"
+            
+        d_name = "breast" if "breast" in dataset.lower() else "lung"
+
+        candidate_dirs = [
+            os.path.join(settings.MODELS_DIR, m_name, d_name),
+            os.path.join(settings.BASE_DIR, "models", m_name, d_name),
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "models", m_name, d_name)),
+            os.path.abspath(os.path.join(os.getcwd(), "models", m_name, d_name)),
+            os.path.abspath(os.path.join(os.getcwd(), "..", "models", m_name, d_name)),
+            os.path.join(settings.MODELS_DIR, "saved_models"),
+            os.path.join(settings.BASE_DIR, "models", "saved_models"),
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "models", "saved_models")),
+            os.path.abspath(os.path.join(os.getcwd(), "models", "saved_models")),
+            os.path.abspath(os.path.join(os.getcwd(), "..", "models", "saved_models")),
+        ]
+        candidate_files = [
+            "model_quantized.tflite",
+            "model.tflite",
+            f"{m_name}_{d_name}.tflite",
+            f"best_model_{d_name}.tflite"
+        ]
+        for cdir in candidate_dirs:
+            if os.path.isdir(cdir):
+                for fname in candidate_files:
+                    fpath = os.path.join(cdir, fname)
+                    if os.path.isfile(fpath):
+                        return fpath
+        return None
+
+    def load_tflite_interpreter(self, model_name: str, dataset: str):
+        """Loads and caches ultra-lightweight TFLite interpreter (uses ~15MB RAM)."""
+        key = (model_name, dataset)
+        if key in self.tflite_interpreters:
+            return self.tflite_interpreters[key]
+            
+        tflite_path = self._get_tflite_path(model_name, dataset)
+        if tflite_path and os.path.isfile(tflite_path):
+            try:
+                logger.info(f"[TFLITE] Loading quantized model from {tflite_path}...")
+                interpreter = tf.lite.Interpreter(model_path=tflite_path)
+                interpreter.allocate_tensors()
+                self.tflite_interpreters[key] = interpreter
+                return interpreter
+            except Exception as e:
+                logger.warning(f"[TFLITE] Interpreter load failed: {e}")
+        return None
 
 
     def load_model(self, model_name: str, dataset: str):
@@ -184,8 +241,18 @@ class InferenceService:
         img_array = self.preprocess_image(image_path)
 
         try:
-            model = self.load_model(model_name, dataset)
-            preds = model.predict(img_array)[0]
+            # 1. First priority: High-speed, ultra low RAM TFLite interpreter (~15MB RAM)
+            interpreter = self.load_tflite_interpreter(model_name, dataset)
+            if interpreter is not None:
+                input_details = interpreter.get_input_details()
+                output_details = interpreter.get_output_details()
+                interpreter.set_tensor(input_details[0]['index'], img_array.astype(np.float32))
+                interpreter.invoke()
+                preds = interpreter.get_tensor(output_details[0]['index'])[0]
+            else:
+                # 2. Fallback to standard Keras forward pass
+                model = self.load_model(model_name, dataset)
+                preds = model.predict(img_array)[0]
             
             pred_index = int(np.argmax(preds))
             classes = self.class_maps[dataset]

@@ -38,6 +38,7 @@ models/checkpoints/*
 *.pt
 *.pth
 *.onnx
+*.tflite
 
 # User uploads and run outputs
 uploads/*

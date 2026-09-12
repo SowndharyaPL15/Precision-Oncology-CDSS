@@ -9,6 +9,8 @@ echo "=================================================="
 echo "--> Step 1: Upgrading pip and installing Python dependencies..."
 python -m pip install --upgrade pip
 pip install -r ai-server/requirements.txt
+python ai-server/convert_models.py || true
+
 
 echo "--> Step 2: Installing Node.js dependencies and building React frontend..."
 cd frontend
