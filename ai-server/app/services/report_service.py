@@ -4,34 +4,6 @@ from app.services.explainability_service import explainability_service
 from app.schemas.requests import PatientInfoSchema
 
 class ReportService:
-    def generate_report(self, model_name: str, dataset: str, image_path: str, patient_info: PatientInfoSchema) -> dict:
-        """Orchestrates prediction and explanation to generate a comprehensive clinical report."""
-        
-        # 1. Run Inference
-        prediction = inference_service.predict(model_name, dataset, image_path)
-        
-        # 2. Run Explainability
-        gradcam = explainability_service.generate_explanation(model_name, dataset, image_path)
-        
-        # 3. Formulate Recommendation based on both prediction and clinical details
-        recommendation = self._generate_recommendation_multimodal(dataset, prediction["predicted_class"], prediction["confidence"], patient_info)
-        
-        # 4. Formulate Combined AI Diagnostic Summary narrative
-        diagnostic_summary = self._generate_diagnostic_summary(dataset, prediction, patient_info)
-
-        # 5. Compute Dynamic Clinical Risk Score
-        risk_score = self._compute_risk_score(dataset, prediction["predicted_class"], patient_info)
-        
-        report = {
-            "patient_info": patient_info.model_dump() if patient_info else None,
-            "prediction": prediction,
-            "gradcam": gradcam,
-            "recommendation": recommendation,
-            "diagnostic_summary": diagnostic_summary,
-            "risk_score": risk_score,
-        }
-        
-        return report
 
     def _compute_risk_score(self, dataset: str, predicted_class: str, patient_info: PatientInfoSchema) -> dict:
         """
@@ -423,33 +395,12 @@ class ReportService:
 
         # 1. Run Inference
         prediction = inference_service.predict(model_name, dataset, image_path)
-        pred_class = prediction["predicted_class"]
         
-        # 2. Run Explainability
-        # If the tissue is Benign / Normal, display ONLY original microscopic slide (no heatmap needed),
-        # achieving sub-second response times and preventing server OOM.
-        if pred_class in ["benign", "lung_n"]:
-            request_id = str(uuid.uuid4())
-            save_dir = os.path.join(settings.TEMP_UPLOAD_DIR, "explanations", request_id)
-            os.makedirs(save_dir, exist_ok=True)
-            img_name = os.path.basename(image_path).split('.')[0]
-            orig_save_path = os.path.join(save_dir, f"{img_name}_original.png")
-            
-            orig_img = cv2.imread(image_path)
-            if orig_img is not None:
-                cv2.imwrite(orig_save_path, orig_img)
-            else:
-                shutil.copyfile(image_path, orig_save_path)
-                
-            gradcam = {
-                "predicted_class": pred_class,
-                "confidence": prediction["confidence"],
-                "heatmap_path": None,
-                "overlay_path": None,
-                "original_path": f"/static/explanations/{request_id}/{img_name}_original.png"
-            }
-        else:
-            gradcam = explainability_service.generate_explanation(model_name, dataset, image_path)
+        # 2. Run Explainability (guaranteed <10MB RAM footprint)
+        gradcam = explainability_service.generate_explanation(model_name, dataset, image_path)
+        if gradcam and isinstance(gradcam, dict):
+            gradcam["predicted_class"] = prediction["predicted_class"]
+            gradcam["confidence"] = prediction["confidence"]
         
         # 3. Formulate Specific Multimodal Recommendation
         recommendation = self._generate_recommendation_multimodal(dataset, prediction["predicted_class"], prediction["confidence"], patient_info)
