@@ -1,13 +1,18 @@
 """
 Histopathology Image Validator Module
 =====================================
-Provides strict, multi-stage clinical validation to ensure uploaded images are
+Provides multi-stage clinical validation to ensure uploaded images are
 genuine microscopic histopathology slides (Hematoxylin and Eosin - H&E stained
 tissue sections).
 
+Calibrated for:
+- Alveolar lung tissue (sparse alveolar air spaces, capillaries, erythrocytes, and bronchial walls)
+- Breast biopsy tissue (ductal structures, stroma, adipocytes)
+- High-magnification (400X) and low-magnification whole slide sections
+
 Rejects:
 - Text documents, job notices, PDFs, UI screenshots, and diagrams
-- Natural photographs (landscapes, people, animals, vegetation, objects)
+- Natural photographs (landscapes, people, vegetation, objects)
 - Non-histological medical images (grayscale X-rays, CT scans, MRIs, ultrasounds)
 - Blank, overexposed, underexposed, solid-color, or corrupted image files
 """
@@ -91,10 +96,10 @@ def validate_histopathology_image(
     hue[b_max] = 60.0 * (((r[b_max] - g[b_max]) / delta[b_max]) + 4)
 
     # 3. Brightfield Glass Background & Blank Image Detection
-    glass_mask = (v > 0.92) & (s < 0.08)
+    glass_mask = (v > 0.94) & (s < 0.06)
     glass_ratio = float(np.sum(glass_mask) / total_pixels)
 
-    if glass_ratio > 0.96:
+    if glass_ratio > 0.985:
         return (
             False,
             0.0,
@@ -104,8 +109,8 @@ def validate_histopathology_image(
 
     # 4. Grayscale / Monochrome Radiograph & Document Detection
     mean_sat = float(np.mean(s))
-    sat_colored_ratio = float(np.sum(s > 0.06) / total_pixels)
-    if mean_sat < 0.035 or sat_colored_ratio < 0.10:
+    sat_colored_ratio = float(np.sum(s > 0.05) / total_pixels)
+    if mean_sat < 0.025 or sat_colored_ratio < 0.04:
         return (
             False,
             0.0,
@@ -117,14 +122,14 @@ def validate_histopathology_image(
         )
 
     # 5. Genuine H&E Stain Chromatic Verification
-    # Eosin: Pink / Rose / Magenta (Cytoplasm and extracellular matrix)
-    eosin_mask = (s > 0.08) & (
-        ((hue >= 295) & (hue <= 360)) |
-        ((hue >= 0) & (hue <= 25) & (r > g + 0.05) & (b >= g * 0.60))
+    # Eosin: Pink / Rose / Magenta / Erythrocyte eosinophilic stain (Cytoplasm, extracellular matrix, RBCs)
+    eosin_mask = (s > 0.04) & (
+        ((hue >= 270) & (hue <= 360)) |
+        ((hue >= 0) & (hue <= 38) & (r > g * 0.80))
     )
 
-    # Hematoxylin: Purple / Indigo / Violet / Blue (Basophilic cellular nuclei)
-    hema_mask = (s > 0.08) & (hue >= 195) & (hue < 295) & (b > g)
+    # Hematoxylin: Purple / Indigo / Violet / Deep Blue (Basophilic cellular nuclei)
+    hema_mask = (s > 0.04) & (hue >= 180) & (hue < 290) & (b > g * 0.85)
 
     he_stain_mask = eosin_mask | hema_mask
     he_stain_ratio = float(np.sum(he_stain_mask) / total_pixels)
@@ -134,10 +139,12 @@ def validate_histopathology_image(
     tissue_count = int(np.sum(tissue_mask))
     tissue_stain_ratio = float(np.sum(he_stain_mask & tissue_mask) / max(tissue_count, 1))
 
-    # 6. Non-Histological Foreign Color Detection (Vegetation, orange headers, UI highlights)
-    orange_yellow_mask = (s > 0.20) & (hue >= 25) & (hue <= 65) & (g > b * 1.20)
-    green_mask = (s > 0.20) & (hue > 65) & (hue <= 165)
-    foreign_ratio = float(np.sum(orange_yellow_mask | green_mask) / total_pixels)
+    # 6. Non-Histological Foreign Synthetic Color Detection (Vegetation green, synthetic UI yellow/cyan)
+    synthetic_green = (s > 0.35) & (hue >= 75) & (hue <= 165)
+    synthetic_yellow = (s > 0.40) & (hue >= 45) & (hue < 75) & (g > r * 1.20)
+    synthetic_cyan = (s > 0.40) & (hue >= 165) & (hue < 195) & (g > 0.7) & (b > 0.7) & (r < 0.3)
+    foreign_mask = synthetic_green | synthetic_yellow | synthetic_cyan
+    foreign_ratio = float(np.sum(foreign_mask) / total_pixels)
 
     # 7. Spatial Flatness (Detects digital documents, PDFs, and UI screenshots)
     gray = 0.2989 * r + 0.5870 * g + 0.1140 * b
@@ -176,24 +183,24 @@ def validate_histopathology_image(
         "glass_ratio": round(glass_ratio, 4)
     }
 
-    # Strict Clinical Rejection Filters
-    if he_stain_ratio < 0.08 or tissue_stain_ratio < 0.15:
+    # Calibrated Clinical Rejection Filters
+    if he_stain_ratio < 0.015:
         return (
             False,
             0.0,
-            f"Image lacks Hematoxylin & Eosin (H&E) cellular staining ({he_stain_ratio*100:.1f}% stain found, minimum 8.0% required). Uploaded image appears to be a document, photograph, or non-histological file.",
+            f"Image lacks Hematoxylin & Eosin (H&E) cellular staining ({he_stain_ratio*100:.1f}% stain found, minimum 1.5% required). Uploaded image appears to be a document, photograph, or non-histological file.",
             details
         )
 
-    if foreign_ratio > 0.05:
+    if foreign_ratio >= 0.25:
         return (
             False,
             0.0,
-            f"Non-histological color artifacts detected ({foreign_ratio*100:.1f}% yellow/orange/green). Authentic H&E slides consist exclusively of purple Hematoxylin and pink Eosin staining.",
+            f"Non-histological color artifacts detected ({foreign_ratio*100:.1f}% synthetic green/yellow/cyan). Authentic H&E slides consist primarily of purple Hematoxylin and pink Eosin staining.",
             details
         )
 
-    if non_empty_bins < 10:
+    if non_empty_bins < 8:
         return (
             False,
             0.0,
@@ -201,19 +208,11 @@ def validate_histopathology_image(
             details
         )
 
-    if flatness_ratio > 0.85 and he_stain_ratio < 0.20:
+    if flatness_ratio > 0.92 and he_stain_ratio < 0.05:
         return (
             False,
             0.0,
             "Image consists primarily of a flat monochrome page background (document or screenshot pattern).",
-            details
-        )
-
-    if isotropy_entropy < 1.2 and he_stain_ratio < 0.30:
-        return (
-            False,
-            0.0,
-            "Image edges align with orthogonal digital grids (text/UI layout) rather than microscopic organic cellular boundaries.",
             details
         )
 
@@ -222,9 +221,9 @@ def validate_histopathology_image(
         0.99,
         max(
             0.85,
-            0.65
-            + 0.25 * min(1.0, he_stain_ratio / 0.40)
-            + 0.10 * min(1.0, isotropy_entropy / 2.0)
+            0.70
+            + 0.25 * min(1.0, he_stain_ratio / 0.30)
+            + 0.05 * min(1.0, isotropy_entropy / 2.0)
         )
     )
 
