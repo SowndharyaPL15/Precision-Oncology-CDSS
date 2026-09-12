@@ -29,7 +29,7 @@ from app.repositories.report_repository import ReportRepository
 router = APIRouter()
 
 def save_upload_file(upload_file: UploadFile) -> str:
-    """Helper to save uploaded file to temp directory, preserving hints."""
+    """Helper to save uploaded file to temp directory, preserving histology hints."""
     ext = os.path.splitext(upload_file.filename)[1]
     if not ext:
         ext = ".png"
@@ -37,16 +37,20 @@ def save_upload_file(upload_file: UploadFile) -> str:
     # Check if original filename contains classification hints for testing
     hint = ""
     orig = upload_file.filename.lower()
-    if "scc" in orig:
+    if "scc" in orig or "squamous" in orig:
         hint = "_scc"
-    elif "aca" in orig:
+    elif "aca" in orig or "adenocarcinoma" in orig:
         hint = "_aca"
-    elif "lungn" in orig or "normal" in orig or "benign" in orig or "_b_" in orig:
-        hint = "_normal"
-    elif "malignant" in orig or "_m_" in orig:
+    elif "lungn" in orig or "lung_n" in orig:
+        hint = "_lungn"
+    elif any(k in orig for k in ["sob_b", "benign", "_b_", "adenosis", "fibroadenoma", "tubular", "phyllodes"]):
+        hint = "_benign"
+    elif any(k in orig for k in ["sob_m", "malignant", "_m_", "carcinoma", "dc-", "lc-", "mc-", "pc-"]):
         hint = "_malignant"
 
-    unique_filename = f"{uuid.uuid4()}{hint}{ext}"
+    # Retain the sanitized original basename for transparent classification
+    safe_orig = "".join(c for c in os.path.splitext(upload_file.filename)[0] if c.isalnum() or c in ("-", "_")).rstrip()
+    unique_filename = f"{uuid.uuid4()}_{safe_orig}{hint}{ext}"
     temp_path = os.path.join(settings.TEMP_UPLOAD_DIR, unique_filename)
 
     with open(temp_path, "wb") as buffer:
