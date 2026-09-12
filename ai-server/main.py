@@ -1,3 +1,8 @@
+import os
+os.environ["MALLOC_TRIM_THRESHOLD_"] = "65536"
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -134,14 +139,6 @@ async def startup_db():
             await session.commit()
     except Exception as e:
         print(f"[WARNING] Startup database setup warning: {e}")
-
-    # Launch model pre-warming in background thread so server becomes responsive immediately
-    try:
-        import threading
-        from app.services.inference_service import inference_service
-        threading.Thread(target=inference_service.prewarm, daemon=True).start()
-    except Exception as e_pw:
-        print(f"[WARNING] Pre-warm thread launch note: {e_pw}")
 
 if __name__ == "__main__":
     import os

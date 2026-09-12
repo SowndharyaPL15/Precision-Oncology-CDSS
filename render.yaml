@@ -20,3 +20,8 @@ services:
         value: PREC-ONCO-2026
       - key: TF_ENABLE_ONEDNN_OPTS
         value: "0"
+      - key: MALLOC_TRIM_THRESHOLD_
+        value: "65536"
+      - key: TF_CPP_MIN_LOG_LEVEL
+        value: "2"
+

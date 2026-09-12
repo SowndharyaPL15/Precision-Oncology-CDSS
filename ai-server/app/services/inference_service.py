@@ -2,6 +2,7 @@ import os
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 import time
+import gc
 import numpy as np
 import tensorflow as tf
 from PIL import Image
@@ -26,17 +27,8 @@ class InferenceService:
         }
 
     def prewarm(self):
-        """Pre-warms primary models in background thread so user requests execute instantly without cold start."""
-        logger.info("[STARTUP] Pre-warming models for zero cold-start inference...")
-        for dataset in ["lung", "breast"]:
-            for model_name in ["densenet121", "resnet50"]:
-                try:
-                    m = self.load_model(model_name, dataset)
-                    dummy = np.zeros((1, 224, 224, 3), dtype=np.float32)
-                    _ = m(dummy, training=False)
-                    logger.info(f"[STARTUP] Model {model_name} on {dataset} pre-warmed successfully.")
-                except Exception as e:
-                    logger.debug(f"[STARTUP] Pre-warm note for {model_name} on {dataset}: {e}")
+        """Pre-warm hook disabled to protect free-tier cloud memory limits (512MB RAM). Models load on demand."""
+        logger.info("[STARTUP] On-demand lazy model loader initialized.")
 
     def _get_model_path(self, model_name: str, dataset: str) -> str:
         """Resolves the path to the best available model file across candidate paths."""
@@ -93,6 +85,16 @@ class InferenceService:
         key = (model_name, dataset)
         if key in self.loaded_models:
             return self.loaded_models[key]
+
+        # Evict old models to keep only 1 active model in RAM (prevents 512MB RAM OOM crashes)
+        if len(self.loaded_models) > 0:
+            logger.info("[MEMORY] Clearing previous model from memory to conserve RAM...")
+            self.loaded_models.clear()
+            try:
+                tf.keras.backend.clear_session()
+            except Exception:
+                pass
+            gc.collect()
             
         m_norm = model_name.lower().strip()
         d_norm = "breast" if "breast" in dataset.lower() else "lung"
@@ -238,6 +240,9 @@ class InferenceService:
         inference_time_ms = (time.time() - start_time) * 1000
         logger.info(f"Predicted {predicted_class} with {confidence:.4f} confidence in {inference_time_ms:.2f}ms")
         
+        # Release memory after inference
+        gc.collect()
+
         return {
             "predicted_class": predicted_class,
             "confidence": confidence,

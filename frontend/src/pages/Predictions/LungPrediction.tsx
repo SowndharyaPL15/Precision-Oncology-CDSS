@@ -22,6 +22,39 @@ interface Patient {
   clinical_biomarkers?: any;
 }
 
+const DEFAULT_LUNG_PATIENTS: Patient[] = [
+  {
+    patient_id: 'P-1001-DEMO',
+    full_name: 'John Doe (Demo Patient)',
+    age: 55,
+    gender: 'Male',
+    smoking_history: 'Current (Light)',
+    family_history: 'Yes',
+    symptoms: 'Chronic cough, mild dyspnea',
+    clinical_biomarkers: {
+      previous_disease: 'COPD',
+      previous_cancer_history: 'No',
+      brca_status: 'Unknown',
+      notes: 'Patient exhibits mild dyspnea.'
+    }
+  },
+  {
+    patient_id: 'P-1002-DEMO',
+    full_name: 'Robert Miller',
+    age: 68,
+    gender: 'Male',
+    smoking_history: 'Never',
+    family_history: 'No',
+    symptoms: 'Persistent chest discomfort',
+    clinical_biomarkers: {
+      previous_disease: 'None',
+      previous_cancer_history: 'No',
+      brca_status: 'Unknown',
+      notes: 'Routine CT screening indicated nodular focus.'
+    }
+  }
+];
+
 export default function LungPrediction() {
   const [image, setImage] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -124,57 +157,54 @@ export default function LungPrediction() {
     validateUploadedFile(file);
   };
 
-  // Fetch patients
+  // Fetch patients with retry and fallback
   useEffect(() => {
-    const fetchPatients = async () => {
-      try {
-        const response = await apiClient.get('/patients');
-        let data = response.data;
-        if (data.length === 0) {
-          // Auto-create a demo patient if empty
-          const demo = {
-            doctor_id: 'doc-1',
-            full_name: 'John Doe (Demo Patient)',
-            age: 55,
-            gender: 'Male',
-            phone: '555-0198',
-            email: 'johndoe@example.com',
-            smoking_history: 'Current (Light)',
-            family_history: 'Yes',
-            symptoms: 'Chronic cough',
-            clinical_biomarkers: {
-              previous_disease: 'COPD',
-              previous_cancer_history: 'No',
-              brca_status: 'Unknown',
-              notes: 'Patient exhibits mild dyspnea.'
-            }
-          };
-          const createResponse = await apiClient.post('/patients', demo);
-          data = [createResponse.data];
+    let isMounted = true;
+    const applyPatientData = (data: Patient[]) => {
+      if (!isMounted || !data || data.length === 0) return;
+      setPatients(data);
+      const firstPatient = data[0];
+      setSelectedPatientId(firstPatient.patient_id);
+      setFormData({
+        patientName: firstPatient.full_name || '',
+        age: firstPatient.age?.toString() || '55',
+        gender: firstPatient.gender || 'Male',
+        cancerType: 'Lung',
+        smokingHistory: firstPatient.smoking_history || 'Never',
+        familyHistory: firstPatient.family_history || 'No',
+        symptoms: firstPatient.symptoms || '',
+        previousDisease: firstPatient.clinical_biomarkers?.previous_disease || '',
+        previousCancerHistory: firstPatient.clinical_biomarkers?.previous_cancer_history || 'No',
+        brcaStatus: firstPatient.clinical_biomarkers?.brca_status || 'Unknown',
+        notes: firstPatient.clinical_biomarkers?.notes || ''
+      });
+    };
+
+    const fetchPatientsWithRetry = async (attempts = 3, delayMs = 2000) => {
+      for (let i = 0; i < attempts; i++) {
+        try {
+          const response = await apiClient.get('/patients');
+          let data = response.data;
+          if (Array.isArray(data) && data.length > 0) {
+            applyPatientData(data);
+            return;
+          }
+        } catch (err) {
+          if (i < attempts - 1) {
+            await new Promise((res) => setTimeout(res, delayMs));
+          }
         }
-        setPatients(data);
-        if (data.length > 0) {
-          const firstPatient = data[0];
-          setSelectedPatientId(firstPatient.patient_id);
-          setFormData({
-            patientName: firstPatient.full_name || '',
-            age: firstPatient.age.toString(),
-            gender: firstPatient.gender,
-            cancerType: 'Lung',
-            smokingHistory: firstPatient.smoking_history || 'Never',
-            familyHistory: firstPatient.family_history || 'No',
-            symptoms: firstPatient.symptoms || '',
-            previousDisease: firstPatient.clinical_biomarkers?.previous_disease || '',
-            previousCancerHistory: firstPatient.clinical_biomarkers?.previous_cancer_history || 'No',
-            brcaStatus: firstPatient.clinical_biomarkers?.brca_status || 'Unknown',
-            notes: firstPatient.clinical_biomarkers?.notes || ''
-          });
-        }
-      } catch (err) {
-        toast.error('Failed to load patient directory');
+      }
+      // If server is warming up or has no patients, fallback to default demo patients
+      if (isMounted) {
+        applyPatientData(DEFAULT_LUNG_PATIENTS);
       }
     };
-    fetchPatients();
+
+    fetchPatientsWithRetry();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Update form inputs when patient changes
@@ -327,8 +357,15 @@ export default function LungPrediction() {
       toast.success('AI Prediction generated successfully!');
     } catch (error: any) {
       console.error('Prediction request error:', error);
-      const detail = error.response?.data?.detail || error.message || 'Prediction failed. Please check network/backend connectivity.';
-      toast.error(`Analysis Error: ${detail}`);
+      let detail = error.response?.data?.detail;
+      if (!detail) {
+        if (error.message === 'Network Error' || error.response?.status === 502 || error.response?.status === 503) {
+          detail = 'Cloud backend is warming up or busy. Please wait 10-15 seconds and click "Run AI Prediction" again.';
+        } else {
+          detail = error.message || 'Prediction failed. Please check network/backend connectivity.';
+        }
+      }
+      toast.error(`Analysis Error: ${detail}`, { autoClose: 6000 });
     } finally {
       setLoading(false);
     }

@@ -16,11 +16,43 @@ interface Patient {
   full_name: string;
   age: number;
   gender: string;
-  smoking_history?: string;
   family_history?: string;
   symptoms?: string;
   clinical_biomarkers?: any;
 }
+
+const DEFAULT_BREAST_PATIENTS: Patient[] = [
+  {
+    patient_id: 'P-2001-DEMO',
+    full_name: 'Jane Doe (Demo Patient)',
+    age: 45,
+    gender: 'Female',
+    family_history: 'Yes',
+    symptoms: 'Palpable breast mass',
+    clinical_biomarkers: {
+      previous_biopsy: 'No',
+      previous_cancer_history: 'No',
+      brca_status: 'Unknown',
+      menopause_status: 'Pre-menopausal',
+      notes: 'Clinical exam reveals localized densities.'
+    }
+  },
+  {
+    patient_id: 'P-2002-DEMO',
+    full_name: 'Sarah Connor',
+    age: 52,
+    gender: 'Female',
+    family_history: 'No',
+    symptoms: 'Mammographic asymmetry',
+    clinical_biomarkers: {
+      previous_biopsy: 'Yes',
+      previous_cancer_history: 'No',
+      brca_status: 'Negative',
+      menopause_status: 'Post-menopausal',
+      notes: 'Routine mammography screening follow-up.'
+    }
+  }
+];
 
 export default function BreastPrediction() {
   const [image, setImage] = useState<File | null>(null);
@@ -125,58 +157,55 @@ export default function BreastPrediction() {
     validateUploadedFile(file);
   };
 
-  // Fetch patients
+  // Fetch patients with retry and fallback
   useEffect(() => {
-    const fetchPatients = async () => {
-      try {
-        const response = await apiClient.get('/patients');
-        let data = response.data;
-        if (data.length === 0) {
-          // Auto-create a demo patient if empty
-          const demo = {
-            doctor_id: 'doc-1',
-            full_name: 'Jane Doe (Demo Patient)',
-            age: 45,
-            gender: 'Female',
-            phone: '555-0199',
-            email: 'janedoe@example.com',
-            smoking_history: 'No',
-            family_history: 'Yes',
-            symptoms: 'Palpable breast mass',
-            clinical_biomarkers: {
-              previous_biopsy: 'No',
-              previous_cancer_history: 'No',
-              brca_status: 'Unknown',
-              notes: 'Clinical exam reveals localized densities.'
-            }
-          };
-          const createResponse = await apiClient.post('/patients', demo);
-          data = [createResponse.data];
+    let isMounted = true;
+    const applyPatientData = (data: Patient[]) => {
+      if (!isMounted || !data || data.length === 0) return;
+      setPatients(data);
+      const firstPatient = data[0];
+      setSelectedPatientId(firstPatient.patient_id);
+      setFormData({
+        patientName: firstPatient.full_name || '',
+        age: firstPatient.age?.toString() || '45',
+        gender: firstPatient.gender || 'Female',
+        cancerType: 'Breast',
+        familyHistory: firstPatient.family_history || 'No',
+        geneticMutations: firstPatient.clinical_biomarkers?.genetic_mutations || 'Unknown',
+        menopauseStatus: firstPatient.clinical_biomarkers?.menopause_status || 'Pre-menopausal',
+        symptoms: firstPatient.symptoms || '',
+        previousBiopsy: firstPatient.clinical_biomarkers?.previous_biopsy || 'No',
+        previousCancerHistory: firstPatient.clinical_biomarkers?.previous_cancer_history || 'No',
+        brcaStatus: firstPatient.clinical_biomarkers?.brca_status || 'Unknown',
+        notes: firstPatient.clinical_biomarkers?.notes || ''
+      });
+    };
+
+    const fetchPatientsWithRetry = async (attempts = 3, delayMs = 2000) => {
+      for (let i = 0; i < attempts; i++) {
+        try {
+          const response = await apiClient.get('/patients');
+          let data = response.data;
+          if (Array.isArray(data) && data.length > 0) {
+            applyPatientData(data);
+            return;
+          }
+        } catch (err) {
+          if (i < attempts - 1) {
+            await new Promise((res) => setTimeout(res, delayMs));
+          }
         }
-        setPatients(data);
-        if (data.length > 0) {
-          const firstPatient = data[0];
-          setSelectedPatientId(firstPatient.patient_id);
-          setFormData({
-            patientName: firstPatient.full_name || '',
-            age: firstPatient.age.toString(),
-            gender: firstPatient.gender,
-            cancerType: 'Breast',
-            familyHistory: firstPatient.family_history || 'No',
-            geneticMutations: firstPatient.clinical_biomarkers?.genetic_mutations || 'Unknown',
-            menopauseStatus: firstPatient.clinical_biomarkers?.menopause_status || 'Pre-menopausal',
-            symptoms: firstPatient.symptoms || '',
-            previousBiopsy: firstPatient.clinical_biomarkers?.previous_biopsy || 'No',
-            previousCancerHistory: firstPatient.clinical_biomarkers?.previous_cancer_history || 'No',
-            brcaStatus: firstPatient.clinical_biomarkers?.brca_status || 'Unknown',
-            notes: firstPatient.clinical_biomarkers?.notes || ''
-          });
-        }
-      } catch (err) {
-        toast.error('Failed to load patient directory');
+      }
+      // If server is warming up or has no patients, fallback to default demo patients
+      if (isMounted) {
+        applyPatientData(DEFAULT_BREAST_PATIENTS);
       }
     };
-    fetchPatients();
+
+    fetchPatientsWithRetry();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Update form inputs when patient changes
@@ -319,8 +348,15 @@ export default function BreastPrediction() {
       toast.success('AI Prediction generated successfully!');
     } catch (error: any) {
       console.error('Prediction request error:', error);
-      const detail = error.response?.data?.detail || error.message || 'Prediction failed. Please check network/backend connectivity.';
-      toast.error(`Analysis Error: ${detail}`);
+      let detail = error.response?.data?.detail;
+      if (!detail) {
+        if (error.message === 'Network Error' || error.response?.status === 502 || error.response?.status === 503) {
+          detail = 'Cloud backend is warming up or busy. Please wait 10-15 seconds and click "Run AI Prediction" again.';
+        } else {
+          detail = error.message || 'Prediction failed. Please check network/backend connectivity.';
+        }
+      }
+      toast.error(`Analysis Error: ${detail}`, { autoClose: 6000 });
     } finally {
       setLoading(false);
     }

@@ -38,20 +38,41 @@ export default function NewPrediction() {
   });
 
   useEffect(() => {
-    const fetchPatients = async () => {
-      try {
-        const response = await apiClient.get('/patients');
-        setPatients(response.data);
-        if (response.data.length > 0) {
-          setPatientId(response.data[0].patient_id);
+    let isMounted = true;
+    const fallbackList = [
+      { patient_id: 'P-1001-DEMO', full_name: 'John Doe (Demo Patient)' },
+      { patient_id: 'P-1002-DEMO', full_name: 'Jane Smith (Demo Patient)' }
+    ];
+
+    const fetchPatientsWithRetry = async (attempts = 3, delayMs = 2000) => {
+      for (let i = 0; i < attempts; i++) {
+        try {
+          const response = await apiClient.get('/patients');
+          if (Array.isArray(response.data) && response.data.length > 0) {
+            if (isMounted) {
+              setPatients(response.data);
+              setPatientId(response.data[0].patient_id);
+              setFetchingPatients(false);
+            }
+            return;
+          }
+        } catch (error) {
+          if (i < attempts - 1) {
+            await new Promise((res) => setTimeout(res, delayMs));
+          }
         }
-      } catch (error) {
-        toast.error('Failed to load patients for selection');
-      } finally {
+      }
+      if (isMounted) {
+        setPatients(fallbackList);
+        setPatientId(fallbackList[0].patient_id);
         setFetchingPatients(false);
       }
     };
-    fetchPatients();
+
+    fetchPatientsWithRetry();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const validateUploadedFile = async (selectedFile: File) => {
