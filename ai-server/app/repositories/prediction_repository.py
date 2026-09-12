@@ -15,13 +15,22 @@ class PredictionRepository:
         if not patient:
             doc_res = await self.session.execute(select(Doctor))
             doc = doc_res.scalars().first()
-            doc_id = doc.doctor_id if doc else "doc-1"
+            if not doc:
+                doc = Doctor(
+                    doctor_id="doc-1",
+                    full_name="Hospital Physician",
+                    email="default_doctor@hospital.org",
+                    specialization="Oncologist",
+                    hospital="General Oncology Center"
+                )
+                self.session.add(doc)
+                await self.session.flush()
             
             patient = Patient(
                 patient_id=patient_id,
-                doctor_id=doc_id,
+                doctor_id=doc.doctor_id,
                 full_name=f"Patient {patient_id}",
-                age=45,
+                age=55,
                 gender="Unknown"
             )
             self.session.add(patient)

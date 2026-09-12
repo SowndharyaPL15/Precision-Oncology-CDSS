@@ -297,9 +297,22 @@ export default function BreastPrediction() {
     data.append('patient_info_json', JSON.stringify(patientClinicalInfo));
 
     try {
-      const response = await apiClient.post('/report', data, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      let response: any = null;
+      const maxAttempts = 3;
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          response = await apiClient.post('/report', data, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
+          if (response?.data) break;
+        } catch (err: any) {
+          if (attempt < maxAttempts && (err.message === 'Network Error' || !err.response || err.response?.status >= 500)) {
+            await new Promise((resolve) => setTimeout(resolve, 3000));
+          } else {
+            throw err;
+          }
+        }
+      }
       
       const reportDb = response.data;
       const report = reportDb.report_json;
