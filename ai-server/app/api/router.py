@@ -378,6 +378,27 @@ async def update_patient(
         raise HTTPException(status_code=404, detail="Patient not found.")
     return patient
 
+@router.delete("/patients/{patient_id}")
+async def delete_patient(
+    patient_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    repo = PatientRepository(db)
+    success = await repo.delete_patient(patient_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Patient not found.")
+    return {"status": "success", "message": f"Patient {patient_id} deleted successfully."}
+
+@router.get("/patients/{patient_id}/predictions", response_model=List[PredictionDBResponse])
+async def get_patient_predictions(
+    patient_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    repo = PredictionRepository(db)
+    predictions = await repo.get_predictions_by_patient(patient_id)
+    return predictions
+
+
 
 # ──────────────────────────────────────────────
 # Prediction History

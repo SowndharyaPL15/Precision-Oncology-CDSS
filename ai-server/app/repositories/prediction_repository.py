@@ -54,3 +54,10 @@ class PredictionRepository:
     async def get_all_predictions(self) -> List[Prediction]:
         result = await self.session.execute(select(Prediction).order_by(Prediction.created_at.desc()))
         return result.scalars().all()
+
+    async def get_predictions_by_patient(self, patient_id: str) -> List[Prediction]:
+        result = await self.session.execute(
+            select(Prediction).filter(Prediction.patient_id == patient_id).order_by(Prediction.created_at.desc())
+        )
+        return result.scalars().all()
+

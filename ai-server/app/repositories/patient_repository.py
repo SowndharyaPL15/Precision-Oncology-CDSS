@@ -39,3 +39,12 @@ class PatientRepository:
         await self.session.refresh(patient)
         return patient
 
+    async def delete_patient(self, patient_id: str) -> bool:
+        patient = await self.get_patient_by_id(patient_id)
+        if not patient:
+            return False
+        await self.session.delete(patient)
+        await self.session.commit()
+        return True
+
+

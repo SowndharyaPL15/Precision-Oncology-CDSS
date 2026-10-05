@@ -350,9 +350,30 @@ def run_tests():
         if os.path.exists(doc_path):
             os.remove(doc_path)
 
+    # Test 15: Patient CRUD - Delete Patient DELETE /patients/{patient_id}
+    if patient_id:
+        total_tests += 1
+        print(f"\n[*] Test 15: Delete Patient DELETE /patients/{patient_id}")
+        try:
+            r = requests.delete(f"{BACKEND_URL}/patients/{patient_id}")
+            if r.status_code == 200:
+                print(f"    Delete message: {r.json().get('message')}")
+                # Verify patient is gone
+                check_r = requests.get(f"{BACKEND_URL}/patients/{patient_id}")
+                if check_r.status_code == 404:
+                    passed_tests += 1
+                    print("    [PASS] Patient successfully deleted and verified 404 on subsequent lookup.")
+                else:
+                    print(f"    [FAIL] Patient still exists with status {check_r.status_code}")
+            else:
+                print(f"    [FAIL] Status code: {r.status_code}, Response: {r.text}")
+        except Exception as e:
+            print(f"    [FAIL] Error deleting patient: {e}")
+
     print("\n--- Test Summary ---")
     print(f"Passed: {passed_tests} / {total_tests}")
     return passed_tests == total_tests
+
 
 if __name__ == "__main__":
     if not os.path.exists(SAMPLE_IMAGE):
