@@ -146,28 +146,53 @@ export default function PredictionResult() {
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
         <Card id="report-content" className="shadow-sm border-0 rounded-4 overflow-hidden mb-5">
-          <div className="bg-dark text-white p-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <div>
-              <div className="d-flex align-items-center gap-2 mb-1 flex-wrap">
-                <h3 className="fw-bold mb-0 d-flex align-items-center gap-2">
-                  <FaStethoscope className="text-info" /> Clinical AI Analysis Report
-                </h3>
-                <Badge 
-                  bg={organ === 'Lung' ? 'primary' : 'danger'} 
-                  style={organ === 'Breast' ? { backgroundColor: '#d63384' } : {}} 
-                  className="fs-6 px-3 py-1 fw-bold shadow-sm d-inline-flex align-items-center gap-1"
-                >
-                  {organ === 'Lung' ? <><FaLungs className="me-1" /> Lung Cancer Protocol</> : <><FaRibbon className="me-1" /> Breast Cancer Protocol</>}
-                </Badge>
+          {/* Professional Clinical Header */}
+          <div 
+            className="p-4 text-white d-flex justify-content-between align-items-center"
+            style={{ 
+              background: organ === 'Lung' 
+                ? 'linear-gradient(135deg, #0d3b66 0%, #001f3f 100%)' 
+                : 'linear-gradient(135deg, #701a40 0%, #2e0819 100%)',
+              borderBottom: '3px solid rgba(255,255,255,0.1)'
+            }}
+          >
+            <div className="d-flex align-items-center gap-3">
+              <div 
+                className="rounded-3 d-flex align-items-center justify-content-center text-white shadow-sm"
+                style={{ 
+                  width: '46px', 
+                  height: '46px', 
+                  backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                  fontSize: '1.4rem'
+                }}
+              >
+                {organ === 'Lung' ? <FaLungs /> : <FaRibbon />}
               </div>
-              <div className="text-white-50 small">
-                Target Organ / Study: <strong className="text-white">{organ} Histopathology Analysis</strong> | Report ID: {reportId} | Generated: {new Date(generatedAt).toLocaleString()}
+              <div>
+                <h4 className="fw-bold mb-1 text-white d-flex align-items-center gap-2">
+                  Clinical AI Analysis Report — {organ} Cancer
+                </h4>
+                <div className="text-white-50 small d-flex flex-wrap align-items-center gap-2">
+                  <span>Target Organ: <strong className="text-white">{organ} Histopathology</strong></span>
+                  <span>&bull;</span>
+                  <span>Report ID: <strong className="text-white font-monospace">#{reportId.slice(0, 8)}</strong></span>
+                  <span>&bull;</span>
+                  <span>{new Date(generatedAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                </div>
               </div>
             </div>
+
             <div className="text-end d-none d-md-block">
-              <h5 className="mb-0 fw-bold">Precision Oncology CDSS</h5>
-              <div className="text-white-50 small">Department of Pathology & Oncology</div>
-              <Badge bg="light" text="dark" className="mt-1 font-monospace">{organ.toUpperCase()} CANCER HISTOPATHOLOGY</Badge>
+              <div className="fw-bold text-white small" style={{ letterSpacing: '0.5px' }}>PRECISION ONCOLOGY CDSS</div>
+              <div className="text-white-50" style={{ fontSize: '0.78rem' }}>Department of Pathology</div>
+              <Badge 
+                bg="white" 
+                text="dark" 
+                className="mt-1 fw-semibold font-monospace px-2 py-1 shadow-sm"
+                style={{ fontSize: '0.72rem' }}
+              >
+                {organ.toUpperCase()} PROTOCOL
+              </Badge>
             </div>
           </div>
 
