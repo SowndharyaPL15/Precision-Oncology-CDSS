@@ -26,8 +26,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount static files for Grad-CAM explanations
-app.mount("/static", StaticFiles(directory=settings.TEMP_UPLOAD_DIR), name="static")
+# Mount static files for Grad-CAM explanations with Starlette CORS wrapper
+from starlette.middleware.cors import CORSMiddleware as StarletteCORSMiddleware
+
+static_app = StaticFiles(directory=settings.TEMP_UPLOAD_DIR)
+app.mount("/static", StarletteCORSMiddleware(
+    static_app,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+), name="static")
 
 # Include API Routers
 app.include_router(router, prefix=settings.API_V1_STR)

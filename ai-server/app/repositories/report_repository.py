@@ -59,6 +59,15 @@ class ReportRepository:
                         p_info["cancer_type"] = "Lung" if dataset.lower() == "lung" else "Breast"
                     
                     r_json["patient_info"] = p_info
+
+                    # Ensure gradcam info is structured
+                    if not r_json.get("gradcam") and r.prediction.gradcam_path:
+                        gp = r.prediction.gradcam_path
+                        r_json["gradcam"] = {
+                            "overlay_path": gp,
+                            "heatmap_path": gp.replace("_overlay.png", "_heatmap.png"),
+                            "original_path": gp.replace("_overlay.png", "_original.png")
+                        }
                 else:
                     # Fallback inference if prediction relation is somehow missing
                     predicted_class = (r_json.get("prediction", {}) or {}).get("predicted_class", "").lower()
