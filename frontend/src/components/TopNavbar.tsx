@@ -1,5 +1,5 @@
-import { Navbar, Container, Form, InputGroup, Nav, Dropdown } from 'react-bootstrap';
-import { FaStethoscope, FaSearch, FaBell, FaUserMd, FaCog, FaSignOutAlt, FaBars } from 'react-icons/fa';
+import { Navbar, Container, Nav, Dropdown } from 'react-bootstrap';
+import { FaStethoscope, FaBell, FaUserMd, FaCog, FaSignOutAlt, FaBars } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
 
@@ -26,20 +26,6 @@ export default function TopNavbar({ onToggleSidebar }: TopNavbarProps) {
           <FaStethoscope className="me-2 fs-4" />
           <span className="fs-5">Precision Oncology</span>
         </Navbar.Brand>
-
-        <Form className="d-none d-md-flex ms-md-4" style={{ width: '240px' }}>
-          <InputGroup size="sm">
-            <InputGroup.Text className="bg-light border-0 text-muted">
-              <FaSearch />
-            </InputGroup.Text>
-            <Form.Control
-              type="search"
-              placeholder="Search patient..."
-              className="bg-light border-0 shadow-none"
-              aria-label="Search"
-            />
-          </InputGroup>
-        </Form>
 
         <Nav className="ms-auto d-flex align-items-center flex-row gap-3">
           <Dropdown align="end" className="me-3 mt-1">
