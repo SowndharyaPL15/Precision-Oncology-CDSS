@@ -8,7 +8,7 @@ import {
 } from 'react-icons/fa';
 // @ts-ignore
 import html2pdf from 'html2pdf.js';
-import apiClient from '../../api/client';
+import apiClient, { getMediaUrl } from '../../api/client';
 import { toast } from 'react-toastify';
 
 export default function Reports() {
@@ -150,6 +150,16 @@ export default function Reports() {
     const organName = organ === 'lung' ? 'LUNG CANCER' : 'BREAST CANCER';
     const organSubtitle = organ === 'lung' ? 'Pulmonary Histopathology Protocol' : 'Mammary / Breast Histopathology Protocol';
 
+    // Resolve 3 visual analysis images (Original, Heatmap, Overlay)
+    const gradcam = report.report_json?.gradcam || {};
+    const overlayPath = gradcam.overlay_path || report.prediction?.gradcam_path || '';
+    const originalPath = gradcam.original_path || (overlayPath ? overlayPath.replace('_overlay.png', '_original.png') : '');
+    const heatmapPath = gradcam.heatmap_path || (overlayPath ? overlayPath.replace('_overlay.png', '_heatmap.png') : '');
+
+    const origImgUrl = originalPath ? getMediaUrl(originalPath) : 'https://via.placeholder.com/300x200/f8f9fa/6c757d?text=Original+Slide';
+    const heatImgUrl = heatmapPath ? getMediaUrl(heatmapPath) : 'https://via.placeholder.com/300x200/f8f9fa/6c757d?text=Grad-CAM+Heatmap';
+    const overImgUrl = overlayPath ? getMediaUrl(overlayPath) : 'https://via.placeholder.com/300x200/f8f9fa/6c757d?text=Superimposed+Overlay';
+
     // Temporary container for rendering the printable report
     const printDiv = document.createElement('div');
     printDiv.id = 'temp-pdf-export';
@@ -226,6 +236,22 @@ export default function Reports() {
           <p style="margin: 0 0 5px 0; font-size: 13px;"><strong>Organ Site:</strong> ${organ === 'lung' ? 'Lungs (Pulmonary Parenchyma)' : 'Breast (Mammary Glandular Tissue)'}</p>
           <p style="margin: 0 0 5px 0; font-size: 13px;"><strong>Severity Level:</strong> <span style="color: ${findingObj.isMalignant ? '#dc3545' : '#198754'}; font-weight: bold;">${findingObj.isMalignant ? 'Malignant / Neoplastic' : 'Benign / Non-Neoplastic'}</span></p>
           <p style="margin: 0; font-size: 13px;"><strong>Diagnostic Status:</strong> Completed & Verified</p>
+        </div>
+      </div>
+
+      <h3 style="border-bottom: 1px solid #ddd; padding-bottom: 5px; color: #444; font-size: 15px;">Explainable AI (Histopathology & Grad-CAM Visualizations)</h3>
+      <div style="display: flex; justify-content: space-between; gap: 12px; margin-bottom: 20px; text-align: center;">
+        <div style="flex: 1; background-color: #f8f9fa; padding: 8px; border-radius: 6px; border: 1px solid #e0e0e0;">
+          <div style="font-size: 11px; font-weight: bold; margin-bottom: 5px; color: #333;">1. Original Biopsy Slide</div>
+          <img src="${origImgUrl}" crossOrigin="anonymous" alt="Original Histopathology Slide" style="width: 100%; max-height: 140px; object-fit: contain; border-radius: 4px; border: 1px solid #ccc; background-color: #fff;" />
+        </div>
+        <div style="flex: 1; background-color: #f8f9fa; padding: 8px; border-radius: 6px; border: 1px solid #e0e0e0;">
+          <div style="font-size: 11px; font-weight: bold; margin-bottom: 5px; color: #333;">2. Grad-CAM Activation Heatmap</div>
+          <img src="${heatImgUrl}" crossOrigin="anonymous" alt="Grad-CAM Heatmap" style="width: 100%; max-height: 140px; object-fit: contain; border-radius: 4px; border: 1px solid #ccc; background-color: #fff;" />
+        </div>
+        <div style="flex: 1; background-color: #f8f9fa; padding: 8px; border-radius: 6px; border: 1px solid #e0e0e0;">
+          <div style="font-size: 11px; font-weight: bold; margin-bottom: 5px; color: #333;">3. Superimposed CNN Overlay</div>
+          <img src="${overImgUrl}" crossOrigin="anonymous" alt="Superimposed Overlay" style="width: 100%; max-height: 140px; object-fit: contain; border-radius: 4px; border: 1px solid #ccc; background-color: #fff;" />
         </div>
       </div>
 

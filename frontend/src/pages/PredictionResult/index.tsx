@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Container, Row, Col, Card, Button, ProgressBar, Badge, Tab, Tabs } from 'react-bootstrap';
+import { Container, Row, Col, Card, Button, ProgressBar, Badge } from 'react-bootstrap';
 import { motion } from 'framer-motion';
 import { 
   FaArrowLeft, FaFilePdf, FaExclamationTriangle, FaStethoscope, FaInfoCircle, 
@@ -18,7 +18,6 @@ export default function PredictionResult() {
   const [report, setReport] = useState<any>(location.state?.report || null);
   const [preview, setPreview] = useState<string | null>(location.state?.preview || null);
   const [zoomScale, setZoomScale] = useState(1);
-  const [activeTab, setActiveTab] = useState<string>('overlay');
 
   useEffect(() => {
     // If no report in state (direct URL access), fetch it from backend or mock it
@@ -328,64 +327,114 @@ export default function PredictionResult() {
               </Col>
             </Row>
 
-            {/* Visual Analysis */}
+            {/* Visual Analysis (Histopathology, Grad-CAM & Overlay) */}
             <div className="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
-              <h6 className="fw-bold text-uppercase text-muted mb-0">Visual Analysis (Explainable AI)</h6>
+              <h6 className="fw-bold text-uppercase text-muted mb-0">Visual Histopathology Analysis (Explainable AI)</h6>
               <div className="d-flex gap-2">
                 <Button size="sm" variant="outline-secondary" onClick={() => setZoomScale(s => Math.max(0.5, s - 0.25))}><FaUndo style={{ transform: 'rotate(-90deg)' }} /></Button>
                 <Button size="sm" variant="outline-secondary" onClick={() => setZoomScale(s => Math.min(2, s + 0.25))}><FaSearchPlus /></Button>
-                <Button size="sm" variant="outline-secondary" onClick={() => setZoomScale(1)}>Reset</Button>
+                <Button size="sm" variant="outline-secondary" onClick={() => setZoomScale(1)}>Reset Zoom</Button>
               </div>
             </div>
 
-            <Row className="mb-5">
-              <Col xs={12}>
-                <div className="border rounded-4 bg-dark overflow-hidden p-3 position-relative d-flex flex-column align-items-center justify-content-center" style={{ minHeight: '380px' }}>
-                  <Tabs activeKey={activeTab} onSelect={(k) => setActiveTab(k || 'overlay')} className="w-100 justify-content-center border-0 mb-3 bg-dark bg-opacity-50 rounded p-1">
-                    <Tab eventKey="original" title={<span className="text-white small px-2"><FaImage className="me-1"/> Original Scan</span>}>
-                      <div className="overflow-auto text-center" style={{ maxHeight: '300px' }}>
-                        <img 
-                          src={getMediaUrl(gradcam?.original_path) || preview} 
-                          crossOrigin="anonymous"
-                          alt="Original Pathological Image" 
-                          style={{ transform: `scale(${zoomScale})`, transition: 'transform 0.2s', maxHeight: '250px', maxWidth: '100%', objectFit: 'contain', display: 'block', margin: '0 auto' }}
-                          className="rounded shadow"
-                          onError={(e: any) => {
-                            e.target.src = preview || 'https://via.placeholder.com/400x400/eeeeee/333333?text=Original+Scan';
-                          }}
-                        />
-                      </div>
-                    </Tab>
-                    <Tab eventKey="heatmap" title={<span className="text-white small px-2"><FaThermometerHalf className="me-1"/> Heatmap</span>}>
-                      <div className="overflow-auto text-center" style={{ maxHeight: '300px' }}>
-                        <img 
-                          src={getMediaUrl(gradcam?.heatmap_path)} 
-                          crossOrigin="anonymous"
-                          alt="Grad-CAM Heatmap" 
-                          style={{ transform: `scale(${zoomScale})`, transition: 'transform 0.2s', maxHeight: '250px', maxWidth: '100%', objectFit: 'contain', display: 'block', margin: '0 auto' }}
-                          className="rounded shadow"
-                          onError={(e: any) => {
-                            e.target.src = 'https://via.placeholder.com/400x400/d63384/ffffff?text=Heatmap+Not+Generated';
-                          }}
-                        />
-                      </div>
-                    </Tab>
-                    <Tab eventKey="overlay" title={<span className="text-white small px-2"><FaSearchPlus className="me-1"/> Combined Overlay</span>}>
-                      <div className="overflow-auto text-center" style={{ maxHeight: '300px' }}>
-                        <img 
-                          src={getMediaUrl(gradcam?.overlay_path)} 
-                          crossOrigin="anonymous"
-                          alt="Grad-CAM Overlay" 
-                          style={{ transform: `scale(${zoomScale})`, transition: 'transform 0.2s', maxHeight: '250px', maxWidth: '100%', objectFit: 'contain', display: 'block', margin: '0 auto' }}
-                          className="rounded shadow"
-                          onError={(e: any) => {
-                            e.target.src = 'https://via.placeholder.com/400x400/222222/ffffff?text=Overlay+Not+Available';
-                          }}
-                        />
-                      </div>
-                    </Tab>
-                  </Tabs>
-                </div>
+            <Row className="g-3 mb-5">
+              <Col xs={12} md={4}>
+                <Card className="h-100 border-0 shadow-sm bg-dark text-white rounded-4 overflow-hidden text-center">
+                  <Card.Header className="bg-black bg-opacity-50 border-0 py-2.5">
+                    <div className="fw-bold small d-flex align-items-center justify-content-center gap-2 text-info">
+                      <FaImage /> 1. Uploaded Histopathology
+                    </div>
+                  </Card.Header>
+                  <Card.Body className="p-3 d-flex flex-column justify-content-center align-items-center" style={{ minHeight: '220px' }}>
+                    <div className="overflow-hidden rounded w-100 d-flex justify-content-center align-items-center" style={{ height: '200px' }}>
+                      <img 
+                        src={getMediaUrl(gradcam?.original_path) || preview} 
+                        crossOrigin="anonymous"
+                        alt="Original Histopathology Image" 
+                        style={{ 
+                          transform: `scale(${zoomScale})`, 
+                          transition: 'transform 0.2s', 
+                          maxHeight: '190px', 
+                          maxWidth: '100%', 
+                          objectFit: 'contain' 
+                        }}
+                        className="rounded shadow-sm"
+                        onError={(e: any) => {
+                          e.target.src = preview || 'https://via.placeholder.com/400x400/eeeeee/333333?text=Original+Scan';
+                        }}
+                      />
+                    </div>
+                  </Card.Body>
+                  <Card.Footer className="bg-black bg-opacity-25 border-0 py-1.5 text-white-50" style={{ fontSize: '0.75rem' }}>
+                    Full-field microscopic biopsy slide
+                  </Card.Footer>
+                </Card>
+              </Col>
+
+              <Col xs={12} md={4}>
+                <Card className="h-100 border-0 shadow-sm bg-dark text-white rounded-4 overflow-hidden text-center">
+                  <Card.Header className="bg-black bg-opacity-50 border-0 py-2.5">
+                    <div className="fw-bold small d-flex align-items-center justify-content-center gap-2 text-warning">
+                      <FaThermometerHalf /> 2. Grad-CAM Heatmap
+                    </div>
+                  </Card.Header>
+                  <Card.Body className="p-3 d-flex flex-column justify-content-center align-items-center" style={{ minHeight: '220px' }}>
+                    <div className="overflow-hidden rounded w-100 d-flex justify-content-center align-items-center" style={{ height: '200px' }}>
+                      <img 
+                        src={getMediaUrl(gradcam?.heatmap_path)} 
+                        crossOrigin="anonymous"
+                        alt="Grad-CAM Activation Heatmap" 
+                        style={{ 
+                          transform: `scale(${zoomScale})`, 
+                          transition: 'transform 0.2s', 
+                          maxHeight: '190px', 
+                          maxWidth: '100%', 
+                          objectFit: 'contain' 
+                        }}
+                        className="rounded shadow-sm"
+                        onError={(e: any) => {
+                          e.target.src = 'https://via.placeholder.com/400x400/d63384/ffffff?text=Heatmap+Not+Generated';
+                        }}
+                      />
+                    </div>
+                  </Card.Body>
+                  <Card.Footer className="bg-black bg-opacity-25 border-0 py-1.5 text-white-50" style={{ fontSize: '0.75rem' }}>
+                    Gradient activation focus areas
+                  </Card.Footer>
+                </Card>
+              </Col>
+
+              <Col xs={12} md={4}>
+                <Card className="h-100 border-0 shadow-sm bg-dark text-white rounded-4 overflow-hidden text-center">
+                  <Card.Header className="bg-black bg-opacity-50 border-0 py-2.5">
+                    <div className="fw-bold small d-flex align-items-center justify-content-center gap-2 text-success">
+                      <FaSearchPlus /> 3. Superimposed Overlay
+                    </div>
+                  </Card.Header>
+                  <Card.Body className="p-3 d-flex flex-column justify-content-center align-items-center" style={{ minHeight: '220px' }}>
+                    <div className="overflow-hidden rounded w-100 d-flex justify-content-center align-items-center" style={{ height: '200px' }}>
+                      <img 
+                        src={getMediaUrl(gradcam?.overlay_path)} 
+                        crossOrigin="anonymous"
+                        alt="Superimposed Grad-CAM Overlay" 
+                        style={{ 
+                          transform: `scale(${zoomScale})`, 
+                          transition: 'transform 0.2s', 
+                          maxHeight: '190px', 
+                          maxWidth: '100%', 
+                          objectFit: 'contain' 
+                        }}
+                        className="rounded shadow-sm"
+                        onError={(e: any) => {
+                          e.target.src = 'https://via.placeholder.com/400x400/222222/ffffff?text=Overlay+Not+Available';
+                        }}
+                      />
+                    </div>
+                  </Card.Body>
+                  <Card.Footer className="bg-black bg-opacity-25 border-0 py-1.5 text-white-50" style={{ fontSize: '0.75rem' }}>
+                    Superimposed histological correlation
+                  </Card.Footer>
+                </Card>
               </Col>
             </Row>
 
