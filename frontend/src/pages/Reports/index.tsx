@@ -163,121 +163,146 @@ export default function Reports() {
     // Temporary container for rendering the printable report
     const printDiv = document.createElement('div');
     printDiv.id = 'temp-pdf-export';
-    printDiv.style.padding = '30px';
-    printDiv.style.fontFamily = 'Arial, sans-serif';
+    printDiv.style.padding = '25px 30px';
+    printDiv.style.fontFamily = 'Arial, Helvetica, sans-serif';
     printDiv.style.color = '#333';
     printDiv.style.backgroundColor = '#ffffff';
 
     printDiv.innerHTML = `
-      <div style="border-bottom: 2px solid ${organColor}; padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+      <div style="border-bottom: 2px solid ${organColor}; padding-bottom: 12px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; page-break-inside: avoid; break-inside: avoid;">
         <div>
           <div style="display: inline-block; background-color: ${organColor}; color: #ffffff; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; letter-spacing: 0.5px; margin-bottom: 4px;">
             TARGET ORGAN: ${organ.toUpperCase()} (${organSubtitle.toUpperCase()})
           </div>
-          <h2 style="margin: 0; color: ${organColor}; font-weight: bold;">PRECISION ONCOLOGY CLINICAL REPORT — ${organName}</h2>
-          <p style="margin: 5px 0 0 0; font-size: 12px; color: #666;">AI-Powered Diagnostic Decision Support System | Metropolitan Oncology CDSS</p>
+          <h2 style="margin: 0; color: ${organColor}; font-weight: bold; font-size: 19px;">PRECISION ONCOLOGY CLINICAL REPORT — ${organName}</h2>
+          <p style="margin: 4px 0 0 0; font-size: 11px; color: #666;">AI-Powered Diagnostic Decision Support System | Metropolitan Oncology CDSS</p>
         </div>
         <div style="text-align: right;">
-          <h4 style="margin: 0; font-weight: bold;">METROPOLITAN ONCOLOGY</h4>
+          <h4 style="margin: 0; font-weight: bold; font-size: 14px;">METROPOLITAN ONCOLOGY</h4>
           <p style="margin: 2px 0 0 0; font-size: 11px; color: #666;">Report ID: #${shortId}</p>
           <div style="margin-top: 3px; font-size: 11px; font-weight: bold; color: ${organColor};">PROTOCOL: ${organName} AI</div>
         </div>
       </div>
 
-      <h3 style="border-bottom: 1px solid #ddd; padding-bottom: 5px; color: #444; font-size: 15px;">Patient Specifications</h3>
-      <table style="width: 100%; margin-bottom: 20px; font-size: 13px; border-collapse: collapse;">
-        <tbody>
-          <tr>
-            <td style="padding: 5px; font-weight: bold; width: 25%;">Patient Name:</td>
-            <td style="padding: 5px;">${patientName}</td>
-            <td style="padding: 5px; font-weight: bold; width: 25%;">Patient ID:</td>
-            <td style="padding: 5px;">${patientId}</td>
-          </tr>
-          <tr>
-            <td style="padding: 5px; font-weight: bold;">Age / Gender:</td>
-            <td style="padding: 5px;">${pInfo.age || 'N/A'} / ${pInfo.gender || 'N/A'}</td>
-            <td style="padding: 5px; font-weight: bold;">Analysis Date:</td>
-            <td style="padding: 5px;">${reportDate}</td>
-          </tr>
-          <tr>
-            <td style="padding: 5px; font-weight: bold;">Cancer Study:</td>
-            <td style="padding: 5px; font-weight: bold; color: ${organColor};">${organName}</td>
-            <td style="padding: 5px; font-weight: bold;">Family History:</td>
-            <td style="padding: 5px;">${pInfo.family_history || 'No'}</td>
-          </tr>
-          ${pInfo.smoking_history ? `
-          <tr>
-            <td style="padding: 5px; font-weight: bold;">Smoking History:</td>
-            <td style="padding: 5px;">${pInfo.smoking_history}</td>
-            <td style="padding: 5px; font-weight: bold;">Symptoms:</td>
-            <td style="padding: 5px;">${pInfo.symptoms || 'None reported'}</td>
-          </tr>
-          ` : ''}
-          ${pInfo.brca_status ? `
-          <tr>
-            <td style="padding: 5px; font-weight: bold;">BRCA Status:</td>
-            <td style="padding: 5px;">${pInfo.brca_status}</td>
-            <td style="padding: 5px; font-weight: bold;">Menopause Status:</td>
-            <td style="padding: 5px;">${pInfo.menopause_status || 'N/A'}</td>
-          </tr>
-          ` : ''}
-        </tbody>
-      </table>
+      <div style="page-break-inside: avoid; break-inside: avoid; margin-bottom: 18px;">
+        <h3 style="border-bottom: 1px solid #ddd; padding-bottom: 4px; color: #444; font-size: 14px; margin-top: 0; margin-bottom: 8px;">Patient Specifications</h3>
+        <table style="width: 100%; font-size: 12px; border-collapse: collapse;">
+          <tbody>
+            <tr>
+              <td style="padding: 4px 6px; font-weight: bold; width: 25%;">Patient Name:</td>
+              <td style="padding: 4px 6px; font-weight: bold; color: #111;">${patientName}</td>
+              <td style="padding: 4px 6px; font-weight: bold; width: 25%;">Patient ID:</td>
+              <td style="padding: 4px 6px; font-family: monospace;">${patientId}</td>
+            </tr>
+            <tr>
+              <td style="padding: 4px 6px; font-weight: bold;">Age / Gender:</td>
+              <td style="padding: 4px 6px;">${pInfo.age || 'N/A'} / ${pInfo.gender || 'N/A'}</td>
+              <td style="padding: 4px 6px; font-weight: bold;">Analysis Date:</td>
+              <td style="padding: 4px 6px;">${reportDate}</td>
+            </tr>
+            <tr>
+              <td style="padding: 4px 6px; font-weight: bold;">Cancer Study:</td>
+              <td style="padding: 4px 6px; font-weight: bold; color: ${organColor};">${organName}</td>
+              <td style="padding: 4px 6px; font-weight: bold;">Family History:</td>
+              <td style="padding: 4px 6px;">${pInfo.family_history || 'No'}</td>
+            </tr>
+            ${pInfo.smoking_history ? `
+            <tr>
+              <td style="padding: 4px 6px; font-weight: bold;">Smoking History:</td>
+              <td style="padding: 4px 6px;">${pInfo.smoking_history}</td>
+              <td style="padding: 4px 6px; font-weight: bold;">Symptoms:</td>
+              <td style="padding: 4px 6px;">${pInfo.symptoms || 'None reported'}</td>
+            </tr>
+            ` : ''}
+            ${pInfo.brca_status ? `
+            <tr>
+              <td style="padding: 4px 6px; font-weight: bold;">BRCA Status:</td>
+              <td style="padding: 4px 6px;">${pInfo.brca_status}</td>
+              <td style="padding: 4px 6px; font-weight: bold;">Menopause Status:</td>
+              <td style="padding: 4px 6px;">${pInfo.menopause_status || 'N/A'}</td>
+            </tr>
+            ` : ''}
+          </tbody>
+        </table>
+      </div>
 
-      <h3 style="border-bottom: 1px solid #ddd; padding-bottom: 5px; color: #444; font-size: 15px;">AI Histopathological Prediction</h3>
-      <div style="display: flex; gap: 20px; margin-bottom: 20px;">
-        <div style="flex: 1; padding: 15px; background-color: #f8f9fa; border-radius: 8px; border: 1px solid #eee; text-align: center;">
-          <h4 style="margin: 0 0 10px 0; color: #555; font-size: 14px;">Diagnostic Classification</h4>
-          <h2 style="margin: 0; color: ${findingObj.isMalignant ? '#dc3545' : '#198754'}; font-weight: bold;">${findingObj.label}</h2>
-          <div style="margin-top: 10px; font-size: 14px;">Confidence Score: <strong>${confidenceVal}%</strong></div>
-        </div>
-        <div style="flex: 1; padding: 15px; background-color: #f8f9fa; border-radius: 8px; border: 1px solid #eee;">
-          <h4 style="margin: 0 0 10px 0; color: #555; font-size: 14px;">Clinical Target Organ Analysis</h4>
-          <p style="margin: 0 0 5px 0; font-size: 13px;"><strong>Organ Site:</strong> ${organ === 'lung' ? 'Lungs (Pulmonary Parenchyma)' : 'Breast (Mammary Glandular Tissue)'}</p>
-          <p style="margin: 0 0 5px 0; font-size: 13px;"><strong>Severity Level:</strong> <span style="color: ${findingObj.isMalignant ? '#dc3545' : '#198754'}; font-weight: bold;">${findingObj.isMalignant ? 'Malignant / Neoplastic' : 'Benign / Non-Neoplastic'}</span></p>
-          <p style="margin: 0; font-size: 13px;"><strong>Diagnostic Status:</strong> Completed & Verified</p>
+      <div style="page-break-inside: avoid; break-inside: avoid; margin-bottom: 18px;">
+        <h3 style="border-bottom: 1px solid #ddd; padding-bottom: 4px; color: #444; font-size: 14px; margin-top: 0; margin-bottom: 8px;">AI Histopathological Prediction</h3>
+        <div style="display: flex; gap: 15px;">
+          <div style="flex: 1; padding: 12px; background-color: #f8f9fa; border-radius: 6px; border: 1px solid #eee; text-align: center;">
+            <div style="margin: 0 0 6px 0; color: #555; font-size: 12px; font-weight: bold;">Diagnostic Classification</div>
+            <h2 style="margin: 0; color: ${findingObj.isMalignant ? '#dc3545' : '#198754'}; font-weight: bold; font-size: 18px;">${findingObj.label}</h2>
+            <div style="margin-top: 6px; font-size: 12px;">Confidence Score: <strong>${confidenceVal}%</strong></div>
+          </div>
+          <div style="flex: 1; padding: 12px; background-color: #f8f9fa; border-radius: 6px; border: 1px solid #eee;">
+            <div style="margin: 0 0 6px 0; color: #555; font-size: 12px; font-weight: bold;">Clinical Target Organ Analysis</div>
+            <p style="margin: 0 0 4px 0; font-size: 12px;"><strong>Organ Site:</strong> ${organ === 'lung' ? 'Lungs (Pulmonary Parenchyma)' : 'Breast (Mammary Glandular Tissue)'}</p>
+            <p style="margin: 0 0 4px 0; font-size: 12px;"><strong>Severity Level:</strong> <span style="color: ${findingObj.isMalignant ? '#dc3545' : '#198754'}; font-weight: bold;">${findingObj.isMalignant ? 'Malignant / Neoplastic' : 'Benign / Non-Neoplastic'}</span></p>
+            <p style="margin: 0; font-size: 12px;"><strong>Diagnostic Status:</strong> Completed & Verified</p>
+          </div>
         </div>
       </div>
 
-      <h3 style="border-bottom: 1px solid #ddd; padding-bottom: 5px; color: #444; font-size: 15px;">Explainable AI (Histopathology & Grad-CAM Visualizations)</h3>
-      <div style="display: flex; justify-content: space-between; gap: 12px; margin-bottom: 20px; text-align: center;">
-        <div style="flex: 1; background-color: #f8f9fa; padding: 8px; border-radius: 6px; border: 1px solid #e0e0e0;">
-          <div style="font-size: 11px; font-weight: bold; margin-bottom: 5px; color: #333;">1. Original Biopsy Slide</div>
-          <img src="${origImgUrl}" crossOrigin="anonymous" alt="Original Histopathology Slide" style="width: 100%; max-height: 140px; object-fit: contain; border-radius: 4px; border: 1px solid #ccc; background-color: #fff;" />
-        </div>
-        <div style="flex: 1; background-color: #f8f9fa; padding: 8px; border-radius: 6px; border: 1px solid #e0e0e0;">
-          <div style="font-size: 11px; font-weight: bold; margin-bottom: 5px; color: #333;">2. Grad-CAM Activation Heatmap</div>
-          <img src="${heatImgUrl}" crossOrigin="anonymous" alt="Grad-CAM Heatmap" style="width: 100%; max-height: 140px; object-fit: contain; border-radius: 4px; border: 1px solid #ccc; background-color: #fff;" />
-        </div>
-        <div style="flex: 1; background-color: #f8f9fa; padding: 8px; border-radius: 6px; border: 1px solid #e0e0e0;">
-          <div style="font-size: 11px; font-weight: bold; margin-bottom: 5px; color: #333;">3. Superimposed CNN Overlay</div>
-          <img src="${overImgUrl}" crossOrigin="anonymous" alt="Superimposed Overlay" style="width: 100%; max-height: 140px; object-fit: contain; border-radius: 4px; border: 1px solid #ccc; background-color: #fff;" />
+      <div style="page-break-inside: avoid; break-inside: avoid; margin-bottom: 18px;">
+        <h3 style="border-bottom: 1px solid #ddd; padding-bottom: 4px; color: #444; font-size: 14px; margin-top: 0; margin-bottom: 8px;">Explainable AI (Histopathology & Grad-CAM Visualizations)</h3>
+        <div style="display: flex; justify-content: space-between; gap: 12px; text-align: center;">
+          <div style="flex: 1; background-color: #f8f9fa; padding: 8px; border-radius: 6px; border: 1px solid #e0e0e0;">
+            <div style="font-size: 11px; font-weight: bold; margin-bottom: 5px; color: #333;">1. Original Biopsy Slide</div>
+            <img src="${origImgUrl}" crossOrigin="anonymous" alt="Original Histopathology Slide" style="width: 100%; max-height: 135px; object-fit: contain; border-radius: 4px; border: 1px solid #ccc; background-color: #fff;" />
+          </div>
+          <div style="flex: 1; background-color: #f8f9fa; padding: 8px; border-radius: 6px; border: 1px solid #e0e0e0;">
+            <div style="font-size: 11px; font-weight: bold; margin-bottom: 5px; color: #333;">2. Grad-CAM Activation Heatmap</div>
+            <img src="${heatImgUrl}" crossOrigin="anonymous" alt="Grad-CAM Heatmap" style="width: 100%; max-height: 135px; object-fit: contain; border-radius: 4px; border: 1px solid #ccc; background-color: #fff;" />
+          </div>
+          <div style="flex: 1; background-color: #f8f9fa; padding: 8px; border-radius: 6px; border: 1px solid #e0e0e0;">
+            <div style="font-size: 11px; font-weight: bold; margin-bottom: 5px; color: #333;">3. Superimposed CNN Overlay</div>
+            <img src="${overImgUrl}" crossOrigin="anonymous" alt="Superimposed Overlay" style="width: 100%; max-height: 135px; object-fit: contain; border-radius: 4px; border: 1px solid #ccc; background-color: #fff;" />
+          </div>
         </div>
       </div>
 
-      <h3 style="border-bottom: 1px solid #ddd; padding-bottom: 5px; color: #444; font-size: 15px;">AI Diagnostic Narrative</h3>
-      <div style="padding: 12px; background-color: #f8f9fa; border-left: 4px solid ${organColor}; margin-bottom: 15px; font-size: 13px; line-height: 1.5;">
-        ${summary}
+      <div style="page-break-inside: avoid; break-inside: avoid; margin-bottom: 14px;">
+        <h3 style="border-bottom: 1px solid #ddd; padding-bottom: 4px; color: #444; font-size: 14px; margin-top: 0; margin-bottom: 8px;">AI Diagnostic Narrative</h3>
+        <div style="padding: 10px 12px; background-color: #f8f9fa; border-left: 4px solid ${organColor}; font-size: 12px; line-height: 1.5; border-radius: 0 4px 4px 0;">
+          ${summary}
+        </div>
       </div>
 
-      <h3 style="border-bottom: 1px solid #ddd; padding-bottom: 5px; color: #444; font-size: 15px;">Clinical Recommendations</h3>
-      <div style="padding: 12px; background-color: #f8f9fa; border-left: 4px solid #198754; margin-bottom: 20px; font-size: 13px; line-height: 1.5;">
-        ${recommendation}
+      <div style="page-break-inside: avoid; break-inside: avoid; margin-bottom: 18px;">
+        <h3 style="border-bottom: 1px solid #ddd; padding-bottom: 4px; color: #444; font-size: 14px; margin-top: 0; margin-bottom: 8px;">Clinical Recommendations</h3>
+        <div style="padding: 10px 12px; background-color: #f8f9fa; border-left: 4px solid #198754; font-size: 12px; line-height: 1.5; border-radius: 0 4px 4px 0;">
+          ${recommendation}
+        </div>
       </div>
 
-      <div style="border-top: 1px solid #eee; padding-top: 10px; margin-top: 20px; font-size: 11px; color: #777; text-align: center;">
+      <div style="page-break-inside: avoid; break-inside: avoid; margin-top: 25px; border-top: 1px solid #ddd; padding-top: 10px; display: flex; justify-content: space-between; align-items: flex-end; font-size: 11px; color: #666;">
+        <div>
+          <div><strong>Precision Oncology CDSS</strong> | Diagnostic Verification System</div>
+          <div style="font-size: 10px; color: #888; margin-top: 2px;">Model: ResNet50 Deep CNN | Status: Completed & Verified</div>
+        </div>
+        <div style="text-align: right;">
+          <div style="border-bottom: 1px solid #999; width: 180px; margin-bottom: 4px;"></div>
+          <div style="font-size: 10px; color: #777;">Authorized Pathologist Signature</div>
+        </div>
+      </div>
+
+      <div style="page-break-inside: avoid; break-inside: avoid; margin-top: 12px; font-size: 10px; color: #888; text-align: center; border-top: 1px dotted #eee; padding-top: 6px;">
         <strong>Clinician Disclaimer:</strong> This clinical decision support report is generated using deep learning models for demonstrative and auxiliary decision support. Final diagnostic verification must be conducted by a licensed board-certified pathologist.
       </div>
     `;
 
     document.body.appendChild(printDiv);
 
+    const cleanPatientName = patientName.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const organFilePrefix = organ === 'breast' ? 'Breast_Cancer' : 'Lung_Cancer';
+
     const opt = {
-      margin: 0.3,
-      filename: `CDSS_Report_${organ.toUpperCase()}_${patientName.replace(/\s+/g, '_')}_${shortId}.pdf`,
+      margin: [0.35, 0.35, 0.35, 0.35],
+      filename: `CDSS_Report_${organFilePrefix}_${cleanPatientName}_${shortId}.pdf`,
       image: { type: 'jpeg' as const, quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true },
-      jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' as const }
+      html2canvas: { scale: 2, useCORS: true, letterRendering: true, logging: false },
+      jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' as const },
+      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
     };
 
     html2pdf().set(opt).from(printDiv).save().then(() => {

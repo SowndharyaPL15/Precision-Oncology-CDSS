@@ -108,17 +108,200 @@ export default function PredictionResult() {
   }, {}) : { malignant: isMalignant ? 90 : 10, benign: isMalignant ? 10 : 90 };
 
   const handleDownload = () => {
-    const element = document.getElementById('report-content');
-    if (element) {
-      const opt = {
-        margin:       0.3,
-        filename:     `CDSS_Report_${organ}_${reportId}.pdf`,
-        image:        { type: 'jpeg' as const, quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true },
-        jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' as const }
-      };
-      html2pdf().set(opt).from(element).save();
-    }
+    const pName = patient_info?.full_name || patient_info?.patient_name || 'Patient';
+    const cleanPatientName = pName.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const organFilePrefix = organ.toLowerCase() === 'breast' ? 'Breast_Cancer' : 'Lung_Cancer';
+    const shortId = reportId ? (reportId.length > 8 ? reportId.slice(0, 8) : reportId) : 'PRD';
+    const organColor = organ === 'Lung' ? '#0d6efd' : '#d63384';
+    const organTitle = organ === 'Lung' ? 'LUNG CANCER' : 'BREAST CANCER';
+    const organSubtitle = organ === 'Lung' ? 'Pulmonary Histopathology Protocol' : 'Mammary / Breast Histopathology Protocol';
+    const reportDate = generatedAt ? new Date(generatedAt).toLocaleString() : new Date().toLocaleString();
+
+    const origImgUrl = gradcam?.original_path ? getMediaUrl(gradcam.original_path) : (preview || 'https://via.placeholder.com/300x200/f8f9fa/6c757d?text=Original+Slide');
+    const heatImgUrl = gradcam?.heatmap_path ? getMediaUrl(gradcam.heatmap_path) : 'https://via.placeholder.com/300x200/f8f9fa/6c757d?text=Grad-CAM+Heatmap';
+    const overImgUrl = gradcam?.overlay_path ? getMediaUrl(gradcam.overlay_path) : 'https://via.placeholder.com/300x200/f8f9fa/6c757d?text=Superimposed+Overlay';
+
+    const printDiv = document.createElement('div');
+    printDiv.id = 'temp-pdf-export';
+    printDiv.style.padding = '25px 30px';
+    printDiv.style.fontFamily = 'Arial, Helvetica, sans-serif';
+    printDiv.style.color = '#333';
+    printDiv.style.backgroundColor = '#ffffff';
+
+    printDiv.innerHTML = `
+      <div style="border-bottom: 2px solid ${organColor}; padding-bottom: 12px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; page-break-inside: avoid; break-inside: avoid;">
+        <div>
+          <div style="display: inline-block; background-color: ${organColor}; color: #ffffff; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; letter-spacing: 0.5px; margin-bottom: 4px;">
+            TARGET ORGAN: ${organ.toUpperCase()} (${organSubtitle.toUpperCase()})
+          </div>
+          <h2 style="margin: 0; color: ${organColor}; font-weight: bold; font-size: 19px;">PRECISION ONCOLOGY CLINICAL REPORT — ${organTitle}</h2>
+          <p style="margin: 4px 0 0 0; font-size: 11px; color: #666;">AI-Powered Diagnostic Decision Support System | Metropolitan Oncology CDSS</p>
+        </div>
+        <div style="text-align: right;">
+          <h4 style="margin: 0; font-weight: bold; font-size: 14px;">METROPOLITAN ONCOLOGY</h4>
+          <p style="margin: 2px 0 0 0; font-size: 11px; color: #666;">Report ID: #${shortId}</p>
+          <div style="margin-top: 3px; font-size: 11px; font-weight: bold; color: ${organColor};">PROTOCOL: ${organTitle} AI</div>
+        </div>
+      </div>
+
+      <div style="page-break-inside: avoid; break-inside: avoid; margin-bottom: 18px;">
+        <h3 style="border-bottom: 1px solid #ddd; padding-bottom: 4px; color: #444; font-size: 14px; margin-top: 0; margin-bottom: 8px;">Patient Specifications</h3>
+        <table style="width: 100%; font-size: 12px; border-collapse: collapse;">
+          <tbody>
+            <tr>
+              <td style="padding: 4px 6px; font-weight: bold; width: 25%;">Patient Name:</td>
+              <td style="padding: 4px 6px; font-weight: bold; color: #111;">${pName}</td>
+              <td style="padding: 4px 6px; font-weight: bold; width: 25%;">Patient ID:</td>
+              <td style="padding: 4px 6px; font-family: monospace;">${patient_info?.patient_id || report.patient_id || 'N/A'}</td>
+            </tr>
+            <tr>
+              <td style="padding: 4px 6px; font-weight: bold;">Age / Gender:</td>
+              <td style="padding: 4px 6px;">${patient_info?.age || 'N/A'} / ${patient_info?.gender || 'N/A'}</td>
+              <td style="padding: 4px 6px; font-weight: bold;">Analysis Date:</td>
+              <td style="padding: 4px 6px;">${reportDate}</td>
+            </tr>
+            <tr>
+              <td style="padding: 4px 6px; font-weight: bold;">Cancer Study:</td>
+              <td style="padding: 4px 6px; font-weight: bold; color: ${organColor};">${organTitle}</td>
+              <td style="padding: 4px 6px; font-weight: bold;">Family History:</td>
+              <td style="padding: 4px 6px;">${patient_info?.family_history || 'No'}</td>
+            </tr>
+            ${patient_info?.smoking_history ? `
+            <tr>
+              <td style="padding: 4px 6px; font-weight: bold;">Smoking History:</td>
+              <td style="padding: 4px 6px;">${patient_info.smoking_history}</td>
+              <td style="padding: 4px 6px; font-weight: bold;">Symptoms:</td>
+              <td style="padding: 4px 6px;">${patient_info.symptoms || 'None reported'}</td>
+            </tr>
+            ` : ''}
+            ${patient_info?.brca_status ? `
+            <tr>
+              <td style="padding: 4px 6px; font-weight: bold;">BRCA Status:</td>
+              <td style="padding: 4px 6px;">${patient_info.brca_status}</td>
+              <td style="padding: 4px 6px; font-weight: bold;">Menopause Status:</td>
+              <td style="padding: 4px 6px;">${patient_info.menopause_status || 'N/A'}</td>
+            </tr>
+            ` : ''}
+          </tbody>
+        </table>
+      </div>
+
+      <div style="page-break-inside: avoid; break-inside: avoid; margin-bottom: 18px;">
+        <h3 style="border-bottom: 1px solid #ddd; padding-bottom: 4px; color: #444; font-size: 14px; margin-top: 0; margin-bottom: 8px;">AI Histopathological Prediction</h3>
+        <div style="display: flex; gap: 15px;">
+          <div style="flex: 1; padding: 12px; background-color: #f8f9fa; border-radius: 6px; border: 1px solid #eee; text-align: center;">
+            <div style="margin: 0 0 6px 0; color: #555; font-size: 12px; font-weight: bold;">Diagnostic Classification</div>
+            <h2 style="margin: 0; color: ${isMalignant ? '#dc3545' : '#198754'}; font-weight: bold; font-size: 18px;">${displayClass}</h2>
+            <div style="margin-top: 6px; font-size: 12px;">Confidence Score: <strong>${confidenceScore.toFixed(1)}% (${getConfidenceLevel(confidenceScore).label})</strong></div>
+          </div>
+          <div style="flex: 1; padding: 12px; background-color: #f8f9fa; border-radius: 6px; border: 1px solid #eee;">
+            <div style="margin: 0 0 6px 0; color: #555; font-size: 12px; font-weight: bold;">Classification Breakdown</div>
+            <div style="margin-bottom: 6px; font-size: 12px;">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
+                <span>Malignant:</span><strong>${probabilities.malignant.toFixed(1)}%</strong>
+              </div>
+              <div style="width: 100%; height: 6px; background-color: #e0e0e0; border-radius: 3px; overflow: hidden;">
+                <div style="width: ${probabilities.malignant}%; height: 100%; background-color: #dc3545;"></div>
+              </div>
+            </div>
+            <div style="font-size: 12px;">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
+                <span>Benign / Normal:</span><strong>${probabilities.benign.toFixed(1)}%</strong>
+              </div>
+              <div style="width: 100%; height: 6px; background-color: #e0e0e0; border-radius: 3px; overflow: hidden;">
+                <div style="width: ${probabilities.benign}%; height: 100%; background-color: #198754;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="page-break-inside: avoid; break-inside: avoid; margin-bottom: 18px;">
+        <h3 style="border-bottom: 1px solid #ddd; padding-bottom: 4px; color: #444; font-size: 14px; margin-top: 0; margin-bottom: 8px;">Explainable AI (Histopathology & Grad-CAM Visualizations)</h3>
+        <div style="display: flex; justify-content: space-between; gap: 12px; text-align: center;">
+          <div style="flex: 1; background-color: #f8f9fa; padding: 8px; border-radius: 6px; border: 1px solid #e0e0e0;">
+            <div style="font-size: 11px; font-weight: bold; margin-bottom: 5px; color: #333;">1. Original Biopsy Slide</div>
+            <img src="${origImgUrl}" crossOrigin="anonymous" alt="Original Histopathology Slide" style="width: 100%; max-height: 135px; object-fit: contain; border-radius: 4px; border: 1px solid #ccc; background-color: #fff;" />
+          </div>
+          <div style="flex: 1; background-color: #f8f9fa; padding: 8px; border-radius: 6px; border: 1px solid #e0e0e0;">
+            <div style="font-size: 11px; font-weight: bold; margin-bottom: 5px; color: #333;">2. Grad-CAM Activation Heatmap</div>
+            <img src="${heatImgUrl}" crossOrigin="anonymous" alt="Grad-CAM Heatmap" style="width: 100%; max-height: 135px; object-fit: contain; border-radius: 4px; border: 1px solid #ccc; background-color: #fff;" />
+          </div>
+          <div style="flex: 1; background-color: #f8f9fa; padding: 8px; border-radius: 6px; border: 1px solid #e0e0e0;">
+            <div style="font-size: 11px; font-weight: bold; margin-bottom: 5px; color: #333;">3. Superimposed CNN Overlay</div>
+            <img src="${overImgUrl}" crossOrigin="anonymous" alt="Superimposed Overlay" style="width: 100%; max-height: 135px; object-fit: contain; border-radius: 4px; border: 1px solid #ccc; background-color: #fff;" />
+          </div>
+        </div>
+      </div>
+
+      ${nestedReport?.risk_score ? `
+      <div style="page-break-inside: avoid; break-inside: avoid; margin-bottom: 18px;">
+        <h3 style="border-bottom: 1px solid #ddd; padding-bottom: 4px; color: #444; font-size: 14px; margin-top: 0; margin-bottom: 8px;">Multimodal Clinical Risk Assessment</h3>
+        <div style="background-color: #f8f9fa; padding: 10px 14px; border-radius: 6px; border: 1px solid #eee;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 12px;">
+            <span style="font-weight: bold;">Risk Level:</span>
+            <span style="font-weight: bold; color: ${nestedReport.risk_score.level === 'CRITICAL' ? '#dc3545' : nestedReport.risk_score.level === 'HIGH' ? '#fd7e14' : '#198754'};">
+              ${nestedReport.risk_score.level} RISK (${nestedReport.risk_score.score} / ${nestedReport.risk_score.max_score} pts — ${nestedReport.risk_score.percentage}%)
+            </span>
+          </div>
+          <div style="font-size: 11px; color: #555;">
+            Triggered Risk Factors: ${nestedReport.risk_score.factors?.filter((f: any) => f.triggered).map((f: any) => f.label).join(', ') || 'None'}
+          </div>
+        </div>
+      </div>
+      ` : ''}
+
+      <div style="page-break-inside: avoid; break-inside: avoid; margin-bottom: 14px;">
+        <h3 style="border-bottom: 1px solid #ddd; padding-bottom: 4px; color: #444; font-size: 14px; margin-top: 0; margin-bottom: 8px;">AI Diagnostic Narrative</h3>
+        <div style="padding: 10px 12px; background-color: #f8f9fa; border-left: 4px solid ${organColor}; font-size: 12px; line-height: 1.5; border-radius: 0 4px 4px 0;">
+          ${diagnostic_summary || summary || 'Histopathological AI analysis complete.'}
+        </div>
+      </div>
+
+      <div style="page-break-inside: avoid; break-inside: avoid; margin-bottom: 18px;">
+        <h3 style="border-bottom: 1px solid #ddd; padding-bottom: 4px; color: #444; font-size: 14px; margin-top: 0; margin-bottom: 8px;">Clinical Recommendations</h3>
+        <div style="padding: 10px 12px; background-color: #f8f9fa; border-left: 4px solid #198754; font-size: 12px; line-height: 1.5; border-radius: 0 4px 4px 0;">
+          ${recommendation || 'Clinical correlation recommended.'}
+        </div>
+      </div>
+
+      <div style="page-break-inside: avoid; break-inside: avoid; margin-top: 25px; border-top: 1px solid #ddd; padding-top: 10px; display: flex; justify-content: space-between; align-items: flex-end; font-size: 11px; color: #666;">
+        <div>
+          <div><strong>Precision Oncology CDSS</strong> | Diagnostic Verification System</div>
+          <div style="font-size: 10px; color: #888; margin-top: 2px;">Model: ResNet50 Deep CNN | Status: Completed & Verified</div>
+        </div>
+        <div style="text-align: right;">
+          <div style="border-bottom: 1px solid #999; width: 180px; margin-bottom: 4px;"></div>
+          <div style="font-size: 10px; color: #777;">Authorized Pathologist Signature</div>
+        </div>
+      </div>
+
+      <div style="page-break-inside: avoid; break-inside: avoid; margin-top: 12px; font-size: 10px; color: #888; text-align: center; border-top: 1px dotted #eee; padding-top: 6px;">
+        <strong>Clinician Disclaimer:</strong> This clinical report is generated via deep learning artificial intelligence for auxiliary diagnostic decision support. Final clinical diagnosis must be verified by a board-certified pathologist.
+      </div>
+    `;
+
+    document.body.appendChild(printDiv);
+
+    const filename = `CDSS_Report_${organFilePrefix}_${cleanPatientName}_${shortId}.pdf`;
+
+    const opt = {
+      margin: [0.35, 0.35, 0.35, 0.35],
+      filename: filename,
+      image: { type: 'jpeg' as const, quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, letterRendering: true, logging: false },
+      jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' as const },
+      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+    };
+
+    html2pdf().set(opt).from(printDiv).save().then(() => {
+      document.body.removeChild(printDiv);
+    }).catch((err: any) => {
+      console.error('Failed to export PDF', err);
+      if (document.body.contains(printDiv)) {
+        document.body.removeChild(printDiv);
+      }
+    });
   };
 
   const getConfidenceLevel = (conf: number) => {
