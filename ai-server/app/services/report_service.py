@@ -414,14 +414,27 @@ class ReportService:
         # 6. Compute Dynamic Clinical Risk Score
         risk_score = self._compute_risk_score(dataset, prediction["predicted_class"], patient_info)
         
+        p_dict = patient_info.model_dump() if patient_info else {}
+        if patient_info:
+            resolved_name = patient_info.full_name or patient_info.patient_name or "Anonymous Patient"
+            if resolved_name == "N/A":
+                resolved_name = "Anonymous Patient"
+            p_dict["full_name"] = resolved_name
+            p_dict["patient_name"] = resolved_name
+            if not p_dict.get("cancer_type"):
+                p_dict["cancer_type"] = "Breast" if dataset == "breast" else "Lung"
+
         report = {
-            "patient_info": patient_info.model_dump() if patient_info else None,
+            "patient_info": p_dict if p_dict else None,
             "prediction": prediction,
             "gradcam": gradcam,
             "recommendation": recommendation,
             "diagnostic_summary": diagnostic_summary,
             "follow_up_items": follow_up_items,
             "risk_score": risk_score,
+            "dataset": dataset,
+            "organ": "Breast" if dataset == "breast" else "Lung",
+            "model_name": model_name
         }
         
         return report

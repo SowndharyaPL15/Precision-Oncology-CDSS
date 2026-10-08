@@ -224,12 +224,37 @@ async def generate_report(
     if model_name not in settings.AVAILABLE_MODELS:
         raise HTTPException(status_code=400, detail="Invalid model specified")
 
+    patient_repo = PatientRepository(db)
+    db_patient = await patient_repo.get_patient_by_id(patient_id) if patient_id else None
+
     patient_info = None
     if patient_info_json:
         try:
             patient_info = PatientInfoSchema.model_validate_json(patient_info_json)
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Invalid patient_info JSON: {e}")
+
+    if not patient_info and db_patient:
+        patient_info = PatientInfoSchema(
+            patient_id=db_patient.patient_id,
+            patient_name=db_patient.full_name,
+            full_name=db_patient.full_name,
+            age=db_patient.age,
+            gender=db_patient.gender,
+            cancer_type="Breast" if dataset == "breast" else "Lung",
+            symptoms=db_patient.symptoms,
+            family_history=db_patient.family_history,
+            smoking_history=db_patient.smoking_history
+        )
+    elif patient_info and db_patient:
+        if not patient_info.patient_name or patient_info.patient_name in ["N/A", "Anonymous Patient", ""]:
+            patient_info.patient_name = db_patient.full_name
+        if not patient_info.full_name or patient_info.full_name in ["N/A", "Anonymous Patient", ""]:
+            patient_info.full_name = db_patient.full_name
+        if not patient_info.age or patient_info.age == 0:
+            patient_info.age = db_patient.age
+        if not patient_info.gender or patient_info.gender == "Unknown":
+            patient_info.gender = db_patient.gender
 
     temp_path = save_upload_file(file)
     try:
@@ -388,6 +413,22 @@ async def delete_patient(
     if not success:
         raise HTTPException(status_code=404, detail="Patient not found.")
     return {"status": "success", "message": f"Patient {patient_id} deleted successfully."}
+
+@router.post("/patients/batch-delete")
+async def batch_delete_patients(
+    payload: dict,
+    db: AsyncSession = Depends(get_db)
+):
+    patient_ids = payload.get("patient_ids", [])
+    if not patient_ids:
+        raise HTTPException(status_code=400, detail="No patient IDs provided for deletion.")
+    repo = PatientRepository(db)
+    count = await repo.delete_patients_batch(patient_ids)
+    return {
+        "status": "success",
+        "message": f"Successfully deleted {count} patient(s).",
+        "deleted_count": count
+    }
 
 @router.get("/patients/{patient_id}/predictions", response_model=List[PredictionDBResponse])
 async def get_patient_predictions(

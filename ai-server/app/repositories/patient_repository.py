@@ -47,4 +47,15 @@ class PatientRepository:
         await self.session.commit()
         return True
 
+    async def delete_patients_batch(self, patient_ids: List[str]) -> int:
+        count = 0
+        for pid in patient_ids:
+            patient = await self.get_patient_by_id(pid)
+            if patient:
+                await self.session.delete(patient)
+                count += 1
+        if count > 0:
+            await self.session.commit()
+        return count
+
 

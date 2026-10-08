@@ -1,7 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { FaUserMd, FaHospitalUser, FaStethoscope, FaChartBar, FaFileAlt, FaSignOutAlt, FaCog, FaLungs, FaRibbon, FaTimes } from 'react-icons/fa';
-import { Dropdown } from 'react-bootstrap';
+import { FaHospitalUser, FaStethoscope, FaChartBar, FaFileAlt, FaLungs, FaRibbon, FaTimes } from 'react-icons/fa';
 import './Sidebar.css';
 
 interface SidebarProps {
@@ -11,7 +9,6 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const location = useLocation();
-  const { logout, user } = useAuth();
 
   const isActive = (path: string) => {
     return location.pathname === path ? 'active' : '';
@@ -85,32 +82,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             </Link>
           </li>
         </ul>
-        <hr />
-
-        {/* Doctor Profile Dropdown — React-Bootstrap Dropdown (no Bootstrap JS dependency) */}
-        <Dropdown drop="up">
-          <Dropdown.Toggle
-            variant="dark"
-            className="d-flex align-items-center text-white text-decoration-none bg-transparent border-0 p-0 shadow-none w-100"
-            style={{ outline: 'none' }}
-          >
-            <FaUserMd className="rounded-circle me-2 fs-4 flex-shrink-0" />
-            <strong className="text-truncate">{user?.name || 'Doctor Profile'}</strong>
-          </Dropdown.Toggle>
-
-          <Dropdown.Menu variant="dark" className="shadow border-0 mb-1" style={{ width: '230px' }}>
-            <Dropdown.Item as={Link} to="/profile" onClick={handleLinkClick}>
-              <FaUserMd className="me-2 text-muted" /> Profile
-            </Dropdown.Item>
-            <Dropdown.Item as={Link} to="/settings" onClick={handleLinkClick}>
-              <FaCog className="me-2 text-muted" /> Settings
-            </Dropdown.Item>
-            <Dropdown.Divider />
-            <Dropdown.Item onClick={logout} className="text-danger">
-              <FaSignOutAlt className="me-2" /> Sign out
-            </Dropdown.Item>
-          </Dropdown.Menu>
-        </Dropdown>
       </div>
     </>
   );

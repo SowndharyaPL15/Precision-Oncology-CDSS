@@ -279,9 +279,11 @@ export default function LungPrediction() {
     data.append('model_name', selectedModel);
     data.append('patient_id', selectedPatientId);
     
+    const resolvedPatientName = formData.patientName || (patients.find(p => p.patient_id === selectedPatientId)?.full_name || 'Anonymous Patient');
     const patientClinicalInfo = {
       patient_id: selectedPatientId,
-      patient_name: formData.patientName || (patients.find(p => p.patient_id === selectedPatientId)?.full_name || 'N/A'),
+      patient_name: resolvedPatientName,
+      full_name: resolvedPatientName,
       age: parseInt(formData.age || '0', 10),
       gender: formData.gender,
       cancer_type: 'Lung',

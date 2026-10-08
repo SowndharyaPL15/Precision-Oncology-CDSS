@@ -4,6 +4,7 @@ from typing import Optional, List
 class PatientInfoSchema(BaseModel):
     patient_id: Optional[str] = Field(default="P-UNKNOWN", description="Unique patient identifier")
     patient_name: Optional[str] = Field(default=None, description="Patient name")
+    full_name: Optional[str] = Field(default=None, description="Patient full name")
     age: Optional[int] = Field(default=45, description="Patient age")
     gender: Optional[str] = Field(default="Unknown", description="Patient gender")
     cancer_type: Optional[str] = Field(default=None, description="Cancer type (breast or lung)")

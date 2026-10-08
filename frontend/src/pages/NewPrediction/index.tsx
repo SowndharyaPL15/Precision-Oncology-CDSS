@@ -142,6 +142,17 @@ export default function NewPrediction() {
     formData.append('model_name', modelName);
     formData.append('patient_id', patientId);
 
+    const selectedPatient = patients.find(p => p.patient_id === patientId);
+    const patientClinicalInfo = {
+      patient_id: patientId,
+      patient_name: selectedPatient?.full_name || 'Anonymous Patient',
+      full_name: selectedPatient?.full_name || 'Anonymous Patient',
+      age: (selectedPatient as any)?.age || 45,
+      gender: (selectedPatient as any)?.gender || 'Unknown',
+      cancer_type: dataset === 'breast' ? 'Breast' : 'Lung',
+    };
+    formData.append('patient_info_json', JSON.stringify(patientClinicalInfo));
+
     try {
       const response = await apiClient.post('/report', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }

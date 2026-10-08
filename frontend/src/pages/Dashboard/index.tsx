@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Container, Row, Col, Card, Button, Spinner, Table, Badge } from 'react-bootstrap';
+import { Container, Row, Col, Card, Button, Spinner, Table, Badge, Form } from 'react-bootstrap';
 import { motion } from 'framer-motion';
 import { FaUsers, FaVial, FaLungs, FaRibbon, FaFileMedical, FaBullseye, FaArrowRight, FaChartLine } from 'react-icons/fa';
 import {
@@ -30,6 +30,8 @@ ChartJS.register(
 
 export default function Dashboard() {
   const [loading, setLoading] = useState(true);
+  const [patientList, setPatientList] = useState<any[]>([]);
+  const [selectedPatientId, setSelectedPatientId] = useState<string>('all');
   const [stats, setStats] = useState({
     patients: 0,
     predictions: 0,
@@ -51,12 +53,14 @@ export default function Dashboard() {
         ]);
 
         const patients = patientsRes.data || [];
+        setPatientList(patients);
         const patientMap = new Map(patients.map((p: any) => [p.patient_id, p.full_name]));
 
         const predictions = (predictionsRes.data || []).map((p: any) => ({
           ...p,
           id: p.prediction_id || p.id,
-          patient_name: patientMap.get(p.patient_id) || p.patient_name || 'Unknown',
+          patient_id: p.patient_id,
+          patient_name: patientMap.get(p.patient_id) || p.patient_name || (p.patient_id ? `Patient ${p.patient_id.slice(0, 8)}` : 'Anonymous'),
           type: p.dataset || p.type,
           result: p.predicted_class || p.result,
           confidence: typeof p.confidence === 'number' && p.confidence <= 1 ? (p.confidence * 100) : p.confidence,
@@ -73,10 +77,10 @@ export default function Dashboard() {
         });
 
         // Mock recent predictions if none exist
-        setRecentPredictions(predictions.slice(0, 5).length > 0 ? predictions.slice(0, 5) : [
-          { id: 'PRD-991', patient_name: 'John Doe', type: 'lung', result: 'Benign', confidence: 98.2, date: new Date().toISOString() },
-          { id: 'PRD-992', patient_name: 'Jane Smith', type: 'breast', result: 'Malignant', confidence: 91.5, date: new Date(Date.now() - 86400000).toISOString() },
-          { id: 'PRD-993', patient_name: 'Robert Brown', type: 'lung', result: 'Benign', confidence: 99.1, date: new Date(Date.now() - 172800000).toISOString() },
+        setRecentPredictions(predictions.length > 0 ? predictions : [
+          { id: 'PRD-991', patient_id: 'P-1001', patient_name: 'John Doe', type: 'lung', result: 'Benign', confidence: 98.2, date: new Date().toISOString() },
+          { id: 'PRD-992', patient_id: 'P-1002', patient_name: 'Jane Smith', type: 'breast', result: 'Malignant', confidence: 91.5, date: new Date(Date.now() - 86400000).toISOString() },
+          { id: 'PRD-993', patient_id: 'P-1003', patient_name: 'Robert Brown', type: 'lung', result: 'Benign', confidence: 99.1, date: new Date(Date.now() - 172800000).toISOString() },
         ]);
 
       } catch (error) {
@@ -204,9 +208,40 @@ export default function Dashboard() {
         <Col xs={12} lg={8}>
           <motion.div variants={itemVariants}>
             <Card className="shadow-sm border-0 rounded-4">
-              <Card.Header className="bg-white border-bottom pt-4 pb-3 px-4 d-flex justify-content-between align-items-center">
-                <h5 className="mb-0 fw-bold">Recent Predictions</h5>
-                <Button variant="link" size="sm" as={Link as any} to="/reports" className="text-decoration-none">View All</Button>
+              <Card.Header className="bg-white border-bottom pt-3 pb-3 px-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div className="d-flex align-items-center gap-3 flex-wrap">
+                  <h5 className="mb-0 fw-bold">Recent Predictions</h5>
+                  <Form.Select
+                    size="sm"
+                    value={selectedPatientId}
+                    onChange={(e) => setSelectedPatientId(e.target.value)}
+                    style={{ width: '200px' }}
+                    className="bg-light border-0 shadow-none fw-semibold"
+                    aria-label="Filter predictions by patient"
+                  >
+                    <option value="all">All Patients ({patientList.length})</option>
+                    {patientList.map((p) => (
+                      <option key={p.patient_id} value={p.patient_id}>
+                        {p.full_name}
+                      </option>
+                    ))}
+                  </Form.Select>
+                </div>
+                <div className="d-flex align-items-center gap-2">
+                  {selectedPatientId !== 'all' && (
+                    <Button 
+                      variant="outline-secondary" 
+                      size="sm" 
+                      onClick={() => setSelectedPatientId('all')}
+                      className="border-0 text-muted py-0 px-2"
+                    >
+                      Clear
+                    </Button>
+                  )}
+                  <Button variant="link" size="sm" as={Link as any} to="/reports" className="text-decoration-none fw-semibold">
+                    View All
+                  </Button>
+                </div>
               </Card.Header>
               <Card.Body className="p-0">
                 <Table responsive hover className="mb-0 align-middle">
@@ -221,32 +256,58 @@ export default function Dashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {recentPredictions.map((pred, i) => {
-                      const resVal = (pred.result || '').toLowerCase();
-                      const isBenign = resVal === 'benign' || resVal === 'lung_n';
-                      const formattedRes = pred.result === 'lung_n' ? 'Normal' : pred.result === 'lung_aca' ? 'Adenocarcinoma' : pred.result === 'lung_scc' ? 'Squamous Cell' : pred.result;
-                      return (
-                        <tr key={i}>
-                          <td className="px-4"><Badge bg="light" text="dark" className="border">{pred.id}</Badge></td>
-                          <td className="fw-semibold">{pred.patient_name}</td>
-                          <td>{pred.type === 'lung' ? <Badge bg="primary"><FaLungs className="me-1"/> Lung</Badge> : <Badge bg="danger"><FaRibbon className="me-1"/> Breast</Badge>}</td>
-                          <td>
-                            <Badge bg={isBenign ? 'success' : 'danger'} pill>
-                              {formattedRes}
-                            </Badge>
-                          </td>
-                          <td>
-                            <div className="d-flex align-items-center">
-                              <span className="me-2 small fw-bold">{typeof pred.confidence === 'number' ? pred.confidence.toFixed(1) : pred.confidence}%</span>
-                              <div className="progress flex-grow-1" style={{ height: '6px' }}>
-                                <div className={`progress-bar bg-${pred.confidence > 90 ? 'success' : 'warning'}`} style={{ width: `${pred.confidence}%` }}></div>
+                    {(() => {
+                      const displayed = recentPredictions.filter(p => {
+                        if (selectedPatientId === 'all') return true;
+                        return p.patient_id === selectedPatientId || p.patient_name === selectedPatientId;
+                      });
+
+                      if (displayed.length === 0) {
+                        return (
+                          <tr>
+                            <td colSpan={6} className="text-center py-4 text-muted">
+                              No recent predictions found for this patient.
+                              <div className="mt-1">
+                                <Button size="sm" variant="link" onClick={() => setSelectedPatientId('all')}>Show All Patients</Button>
                               </div>
-                            </div>
-                          </td>
-                          <td className="px-4 text-muted small">{new Date(pred.date).toLocaleDateString()}</td>
-                        </tr>
-                      );
-                    })}
+                            </td>
+                          </tr>
+                        );
+                      }
+
+                      return displayed.slice(0, 6).map((pred, i) => {
+                        const resVal = (pred.result || '').toLowerCase();
+                        const isBenign = resVal === 'benign' || resVal === 'lung_n';
+                        const formattedRes = pred.result === 'lung_n' ? 'Normal' : pred.result === 'lung_aca' ? 'Adenocarcinoma' : pred.result === 'lung_scc' ? 'Squamous Cell' : pred.result;
+                        const shortId = pred.id ? (pred.id.length > 10 ? `#${pred.id.slice(0, 8)}` : pred.id) : '#N/A';
+                        
+                        return (
+                          <tr key={i}>
+                            <td className="px-4">
+                              <Badge bg="light" text="dark" className="border font-monospace py-1.5 px-2" title={pred.id}>
+                                {shortId}
+                              </Badge>
+                            </td>
+                            <td className="fw-semibold text-dark">{pred.patient_name}</td>
+                            <td>{pred.type === 'lung' ? <Badge bg="primary" className="px-2 py-1"><FaLungs className="me-1"/> Lung</Badge> : <Badge bg="danger" style={{ backgroundColor: '#d63384' }} className="px-2 py-1"><FaRibbon className="me-1"/> Breast</Badge>}</td>
+                            <td>
+                              <Badge bg={isBenign ? 'success' : 'danger'} pill className="px-2.5 py-1">
+                                {formattedRes}
+                              </Badge>
+                            </td>
+                            <td>
+                              <div className="d-flex align-items-center">
+                                <span className="me-2 small fw-bold">{typeof pred.confidence === 'number' ? pred.confidence.toFixed(1) : pred.confidence}%</span>
+                                <div className="progress flex-grow-1" style={{ height: '6px', maxWidth: '80px' }}>
+                                  <div className={`progress-bar bg-${pred.confidence > 90 ? 'success' : 'warning'}`} style={{ width: `${pred.confidence}%` }}></div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-4 text-muted small">{new Date(pred.date).toLocaleDateString()}</td>
+                          </tr>
+                        );
+                      });
+                    })()}
                   </tbody>
                 </Table>
               </Card.Body>

@@ -27,14 +27,14 @@ export default function TopNavbar({ onToggleSidebar }: TopNavbarProps) {
           <span className="fs-5">Precision Oncology</span>
         </Navbar.Brand>
 
-        <Form className="d-none d-md-flex ms-md-4" style={{ width: '350px' }}>
-          <InputGroup>
+        <Form className="d-none d-md-flex ms-md-4" style={{ width: '240px' }}>
+          <InputGroup size="sm">
             <InputGroup.Text className="bg-light border-0 text-muted">
               <FaSearch />
             </InputGroup.Text>
             <Form.Control
               type="search"
-              placeholder="Search patients by ID, Name..."
+              placeholder="Search patient..."
               className="bg-light border-0 shadow-none"
               aria-label="Search"
             />
