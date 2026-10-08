@@ -9,7 +9,6 @@ import {
 import { toast } from 'react-toastify';
 import apiClient, { getMediaUrl } from '../../api/client';
 import { validateUploadedSlide } from '../../utils/slideValidator';
-import { FALLBACK_SCAN_SVG, FALLBACK_HEATMAP_SVG, FALLBACK_OVERLAY_SVG } from '../../utils/imageFallbacks';
 // @ts-ignore
 import html2pdf from 'html2pdf.js';
 
@@ -983,8 +982,7 @@ export default function BreastPrediction() {
                               }}
                               className="rounded shadow"
                               onError={(e: any) => {
-                                e.currentTarget.onerror = null;
-                                e.currentTarget.src = preview || FALLBACK_SCAN_SVG;
+                                e.target.src = preview || 'https://via.placeholder.com/400x400/eeeeee/333333?text=Original+Scan';
                               }}
                             />
                           </div>
@@ -1027,7 +1025,7 @@ export default function BreastPrediction() {
                           <div className="overflow-auto text-center w-100 d-flex justify-content-center align-items-center" style={{ minHeight: '260px', maxHeight: '300px' }}>
                             {activeTab === 'original' && (
                               <img 
-                                src={getMediaUrl(result.gradcam?.original_path) || preview || FALLBACK_SCAN_SVG} 
+                                src={getMediaUrl(result.gradcam?.original_path) || preview} 
                                 alt="Original Pathological Image" 
                                 style={{ 
                                   transform: `scale(${zoomScale})`, 
@@ -1035,19 +1033,18 @@ export default function BreastPrediction() {
                                   maxHeight: '250px', 
                                   maxWidth: '100%',
                                   objectFit: 'contain', 
-                                  display: 'block', 
+                                  display: 'block',
                                   margin: '0 auto' 
                                 }}
                                 className="rounded shadow"
                                 onError={(e: any) => {
-                                  e.currentTarget.onerror = null;
-                                  e.currentTarget.src = preview || FALLBACK_SCAN_SVG;
+                                  e.target.src = preview || 'https://via.placeholder.com/400x400/eeeeee/333333?text=Original+Scan';
                                 }}
                               />
                             )}
                             {activeTab === 'heatmap' && (
                               <img 
-                                src={getMediaUrl(result.gradcam?.heatmap_path) || FALLBACK_HEATMAP_SVG} 
+                                src={getMediaUrl(result.gradcam?.heatmap_path)} 
                                 alt="Grad-CAM Heatmap" 
                                 style={{ 
                                   transform: `scale(${zoomScale})`, 
@@ -1055,13 +1052,12 @@ export default function BreastPrediction() {
                                   maxHeight: '250px', 
                                   maxWidth: '100%',
                                   objectFit: 'contain', 
-                                  display: 'block', 
+                                  display: 'block',
                                   margin: '0 auto' 
                                 }}
                                 className="rounded shadow"
                                 onError={(e: any) => {
-                                  e.currentTarget.onerror = null;
-                                  e.currentTarget.src = FALLBACK_HEATMAP_SVG;
+                                  e.target.src = 'https://via.placeholder.com/400x400/d63384/ffffff?text=Heatmap+Not+Generated';
                                 }}
                               />
                             )}
@@ -1077,7 +1073,7 @@ export default function BreastPrediction() {
                                 }}
                               >
                                 <img 
-                                  src={getMediaUrl(result.gradcam?.original_path) || preview || FALLBACK_SCAN_SVG} 
+                                  src={getMediaUrl(result.gradcam?.original_path) || preview} 
                                   alt="Original Pathological Image" 
                                   style={{ 
                                     maxHeight: '250px', 
@@ -1086,8 +1082,7 @@ export default function BreastPrediction() {
                                     objectFit: 'contain' 
                                   }}
                                   onError={(e: any) => {
-                                    e.currentTarget.onerror = null;
-                                    e.currentTarget.src = preview || FALLBACK_SCAN_SVG;
+                                    e.target.src = preview || 'https://via.placeholder.com/400x400/eeeeee/333333?text=Original+Scan';
                                   }}
                                 />
                                 <img 

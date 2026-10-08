@@ -60,7 +60,6 @@ class ReportRepository:
                     
                     r_json["patient_info"] = p_info
 
-                    # Ensure gradcam info is structured
                     if not r_json.get("gradcam") and r.prediction.gradcam_path:
                         gp = r.prediction.gradcam_path
                         r_json["gradcam"] = {
