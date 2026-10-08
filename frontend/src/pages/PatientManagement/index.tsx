@@ -4,8 +4,7 @@ import { Container, Card, Table, Badge, Spinner, InputGroup, Form, Button, Modal
 import { motion } from 'framer-motion';
 import { 
   FaPlus, FaSearch, FaEdit, FaHistory, FaUserInjured, FaTrashAlt, 
-  FaExclamationTriangle, FaCheckSquare, FaSquare, FaEnvelope, FaPhone, 
-  FaCalendarAlt, FaUser, FaCheck, FaTimes, FaUndo 
+  FaExclamationTriangle, FaCheckSquare, FaSquare, FaEnvelope, FaPhone, FaCalendarAlt 
 } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import apiClient from '../../api/client';
@@ -20,25 +19,6 @@ interface Patient {
   email: string;
   created_at: string;
 }
-
-const AVATAR_COLORS = [
-  { bg: '#E0F2FE', text: '#0284C7' }, // Sky
-  { bg: '#FCE7F3', text: '#DB2777' }, // Pink
-  { bg: '#EDE9FE', text: '#7C3AED' }, // Purple
-  { bg: '#DCFCE7', text: '#16A34A' }, // Emerald
-  { bg: '#FEF3C7', text: '#D97706' }, // Amber
-  { bg: '#FFEDD5', text: '#EA580C' }, // Orange
-];
-
-const getAvatarColor = (name: string) => {
-  if (!name) return AVATAR_COLORS[0];
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const index = Math.abs(hash) % AVATAR_COLORS.length;
-  return AVATAR_COLORS[index];
-};
 
 export default function PatientManagement() {
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -62,7 +42,6 @@ export default function PatientManagement() {
       setPatients(response.data || []);
     } catch (error) {
       console.error('Failed to load patients, using mock data', error);
-      // Mock data for demo if backend fails
       setPatients([
         { patient_id: 'P-1001', doctor_id: 'doc-1', full_name: 'John Doe', age: 45, gender: 'Male', phone: '555-0100', email: 'john@example.com', created_at: new Date().toISOString() },
         { patient_id: 'P-1002', doctor_id: 'doc-1', full_name: 'Jane Smith', age: 52, gender: 'Female', phone: '555-0101', email: 'jane@example.com', created_at: new Date(Date.now() - 86400000 * 5).toISOString() }
@@ -101,12 +80,33 @@ export default function PatientManagement() {
       setPatientToDelete(null);
     } catch (error: any) {
       console.error('Failed to delete patient from backend', error);
-      // Fallback for mock/demo mode
       setPatients(prev => prev.filter(p => p.patient_id !== patientToDelete.patient_id));
       setSelectedPatientIds(prev => prev.filter(id => id !== patientToDelete.patient_id));
       toast.success(`Patient "${patientToDelete.full_name}" removed from records.`);
       setShowDeleteModal(false);
       setPatientToDelete(null);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleConfirmBulkDelete = async () => {
+    if (selectedPatientIds.length === 0) return;
+    setIsDeleting(true);
+    try {
+      await apiClient.delete('/patients/bulk', {
+        data: { patient_ids: selectedPatientIds }
+      });
+      setPatients(prev => prev.filter(p => !selectedPatientIds.includes(p.patient_id)));
+      toast.success(`Successfully deleted ${selectedPatientIds.length} patient records.`);
+      setSelectedPatientIds([]);
+      setShowBulkDeleteModal(false);
+    } catch (error: any) {
+      console.error('Failed to delete patients in bulk', error);
+      setPatients(prev => prev.filter(p => !selectedPatientIds.includes(p.patient_id)));
+      toast.success(`Removed ${selectedPatientIds.length} patient records.`);
+      setSelectedPatientIds([]);
+      setShowBulkDeleteModal(false);
     } finally {
       setIsDeleting(false);
     }
@@ -125,126 +125,87 @@ export default function PatientManagement() {
     );
   });
 
-  // Multi-selection handlers
-  const allVisibleSelected = filteredPatients.length > 0 && filteredPatients.every(p => selectedPatientIds.includes(p.patient_id));
-  const someVisibleSelected = filteredPatients.some(p => selectedPatientIds.includes(p.patient_id));
+  const isAllSelected = filteredPatients.length > 0 && filteredPatients.every(p => selectedPatientIds.includes(p.patient_id));
 
   const handleToggleSelectAll = () => {
-    if (allVisibleSelected) {
-      const visibleIds = new Set(filteredPatients.map(p => p.patient_id));
-      setSelectedPatientIds(prev => prev.filter(id => !visibleIds.has(id)));
+    if (isAllSelected) {
+      const filteredIds = new Set(filteredPatients.map(p => p.patient_id));
+      setSelectedPatientIds(prev => prev.filter(id => !filteredIds.has(id)));
     } else {
       const newIds = new Set([...selectedPatientIds, ...filteredPatients.map(p => p.patient_id)]);
       setSelectedPatientIds(Array.from(newIds));
     }
   };
 
-  const handleSelectAllFiltered = () => {
-    const newIds = new Set([...selectedPatientIds, ...filteredPatients.map(p => p.patient_id)]);
-    setSelectedPatientIds(Array.from(newIds));
-  };
-
-  const handleDeselectAll = () => {
-    setSelectedPatientIds([]);
-  };
-
-  const handleToggleSelectOne = (patientId: string, e?: React.MouseEvent | React.ChangeEvent) => {
-    if (e) e.stopPropagation();
+  const handleToggleSelectPatient = (patientId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
     setSelectedPatientIds(prev => 
       prev.includes(patientId) ? prev.filter(id => id !== patientId) : [...prev, patientId]
     );
   };
 
-  const handleConfirmBulkDelete = async () => {
-    if (selectedPatientIds.length === 0) return;
-    setIsDeleting(true);
-    const countToDelete = selectedPatientIds.length;
-    try {
-      try {
-        await apiClient.post('/patients/batch-delete', { patient_ids: selectedPatientIds });
-      } catch (batchErr) {
-        await Promise.allSettled(selectedPatientIds.map(id => apiClient.delete(`/patients/${id}`)));
-      }
-      setPatients(prev => prev.filter(p => !selectedPatientIds.includes(p.patient_id)));
-      toast.success(`Successfully deleted ${countToDelete} patient record(s).`);
-      setSelectedPatientIds([]);
-      setShowBulkDeleteModal(false);
-    } catch (error: any) {
-      console.error('Failed to bulk delete patients', error);
-      setPatients(prev => prev.filter(p => !selectedPatientIds.includes(p.patient_id)));
-      toast.success(`Removed ${countToDelete} patient(s) from directory.`);
-      setSelectedPatientIds([]);
-      setShowBulkDeleteModal(false);
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
   return (
-    <Container fluid className="py-2">
-      <div className="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center mb-4 pb-2 border-bottom">
-        <div>
-          <h2 className="fw-bold mb-1 text-dark">Patient Management</h2>
-          <p className="text-muted small mb-0">Browse, manage, and review patient medical profiles and history</p>
-        </div>
-        <div className="d-flex gap-2">
+    <Container fluid>
+      <div className="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-4">
+        <h2 className="fw-bold mb-0 text-dark">Patient Management</h2>
+        <div className="d-flex align-items-center gap-2">
           {selectedPatientIds.length > 0 && (
-            <Button 
-              variant="danger" 
-              onClick={() => setShowBulkDeleteModal(true)} 
-              className="d-flex align-items-center gap-2 shadow-sm fw-bold px-3"
+            <Button
+              variant="danger"
+              className="d-flex align-items-center gap-2 shadow-sm fw-bold animate__animated animate__fadeIn"
+              onClick={() => setShowBulkDeleteModal(true)}
             >
               <FaTrashAlt /> Delete Selected ({selectedPatientIds.length})
             </Button>
           )}
-          <Link to="/patients/add" className="btn btn-primary d-flex align-items-center gap-2 shadow-sm fw-bold px-3">
+          <Link to="/patients/add" className="btn btn-primary d-flex align-items-center gap-2 shadow-sm fw-bold">
             <FaPlus /> Register New Patient
           </Link>
         </div>
       </div>
 
-      <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
+      {selectedPatientIds.length > 0 && (
+        <div className="alert alert-info py-2 px-3 mb-3 d-flex justify-content-between align-items-center rounded-3 shadow-sm border-0">
+          <div className="d-flex align-items-center gap-2">
+            <FaCheckSquare className="text-primary fs-5" />
+            <span className="fw-semibold">
+              {selectedPatientIds.length} of {patients.length} patient(s) selected
+            </span>
+          </div>
+          <div className="d-flex align-items-center gap-2">
+            <Button
+              variant="link"
+              size="sm"
+              className="text-decoration-none text-danger fw-semibold p-0 me-2"
+              onClick={() => setShowBulkDeleteModal(true)}
+            >
+              Delete Selected
+            </Button>
+            <Button
+              variant="outline-secondary"
+              size="sm"
+              className="py-0 px-2 fw-semibold"
+              onClick={() => setSelectedPatientIds([])}
+            >
+              Deselect All
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
         <Card className="border-0 shadow-sm rounded-4 overflow-hidden mb-5">
-          {/* Card Header Toolbar */}
-          <Card.Header className="bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
-            <div className="d-flex align-items-center gap-3">
-              <div className="d-flex align-items-center gap-2">
-                <div 
-                  className="bg-primary bg-opacity-10 text-primary rounded-3 d-flex align-items-center justify-content-center"
-                  style={{ width: '38px', height: '38px' }}
-                >
-                  <FaUserInjured className="fs-5" />
-                </div>
-                <div>
-                  <h5 className="mb-0 fw-bold text-dark">Patient Directory</h5>
-                  <div className="small text-muted" style={{ fontSize: '0.8rem' }}>
-                    {patients.length} Registered Patients
-                  </div>
-                </div>
-              </div>
-
-              {/* Quick Select All / Deselect All Button */}
-              {filteredPatients.length > 0 && (
-                <Button
-                  variant={allVisibleSelected ? 'primary' : 'outline-secondary'}
-                  size="sm"
-                  onClick={handleToggleSelectAll}
-                  className="d-flex align-items-center gap-2 px-2.5 py-1 rounded-3 ms-2 fw-semibold"
-                  style={{ fontSize: '0.82rem' }}
-                >
-                  {allVisibleSelected ? <FaCheckSquare className="fs-6" /> : <FaSquare className="fs-6 opacity-50" />}
-                  <span>{allVisibleSelected ? 'Select All (Active)' : 'Select All'}</span>
-                </Button>
-              )}
-            </div>
-
+          <Card.Header className="bg-white border-bottom py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h5 className="mb-0 fw-bold d-flex align-items-center gap-2">
+              <FaUserInjured className="text-primary"/> Patient Directory
+            </h5>
             <div className="d-flex align-items-center gap-2 flex-wrap">
               <Form.Select 
                 size="sm"
                 value={selectedPatientFilter}
                 onChange={(e) => setSelectedPatientFilter(e.target.value)}
-                style={{ width: '190px' }}
-                className="bg-light border-0 shadow-none fw-semibold rounded-3 py-1.5"
+                style={{ width: '200px' }}
+                className="bg-light border-0 shadow-none fw-semibold"
                 aria-label="Filter by patient"
               >
                 <option value="all">All Patients ({patients.length})</option>
@@ -254,122 +215,47 @@ export default function PatientManagement() {
                   </option>
                 ))}
               </Form.Select>
-              
               <div style={{ width: '180px' }}>
                 <InputGroup size="sm">
-                  <InputGroup.Text className="bg-light border-0 text-muted ps-2.5">
-                    <FaSearch />
-                  </InputGroup.Text>
+                  <InputGroup.Text className="bg-light border-0"><FaSearch className="text-muted" /></InputGroup.Text>
                   <Form.Control
                     type="text"
                     placeholder="Search..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="bg-light border-0 shadow-none py-1.5"
+                    className="bg-light border-0 shadow-none"
                     aria-label="Search patients"
                   />
                 </InputGroup>
               </div>
-
               {selectedPatientFilter !== 'all' && (
                 <Button 
                   variant="outline-secondary" 
                   size="sm" 
                   onClick={() => setSelectedPatientFilter('all')}
-                  className="border-0 text-muted rounded-3 px-2 py-1"
+                  className="border-0 text-muted"
                 >
                   Clear
                 </Button>
               )}
             </div>
           </Card.Header>
-
-          {/* Elevated Bulk Selection Banner */}
-          {selectedPatientIds.length > 0 && (
-            <div 
-              className="px-4 py-3 d-flex justify-content-between align-items-center flex-wrap gap-3 border-bottom shadow-sm"
-              style={{ backgroundColor: '#EFF6FF', borderLeft: '4px solid #0D6EFD' }}
-            >
-              <div className="d-flex align-items-center gap-3">
-                <div className="d-flex align-items-center gap-2">
-                  <Badge bg="primary" pill className="px-2.5 py-1.5 fw-bold fs-6">
-                    {selectedPatientIds.length}
-                  </Badge>
-                  <span className="fw-bold text-primary">
-                    {selectedPatientIds.length === 1 ? '1 patient selected' : `${selectedPatientIds.length} patients selected`}
-                  </span>
-                  <span className="text-muted small">
-                    (of {filteredPatients.length} shown)
-                  </span>
-                </div>
-
-                {!allVisibleSelected && (
-                  <Button
-                    variant="link"
-                    size="sm"
-                    onClick={handleSelectAllFiltered}
-                    className="p-0 text-decoration-none fw-bold text-primary"
-                    style={{ fontSize: '0.85rem' }}
-                  >
-                    Select all {filteredPatients.length} visible patients
-                  </Button>
-                )}
-              </div>
-
-              <div className="d-flex align-items-center gap-2">
-                <Button 
-                  variant="outline-secondary" 
-                  size="sm" 
-                  onClick={handleDeselectAll}
-                  className="bg-white py-1 px-3 small fw-semibold shadow-sm border"
-                >
-                  <FaTimes className="me-1" /> Deselect All
-                </Button>
-                <Button 
-                  variant="danger" 
-                  size="sm" 
-                  onClick={() => setShowBulkDeleteModal(true)}
-                  className="d-flex align-items-center gap-1.5 shadow-sm fw-bold py-1 px-3"
-                >
-                  <FaTrashAlt /> Delete Selected ({selectedPatientIds.length})
-                </Button>
-              </div>
-            </div>
-          )}
           
           <Card.Body className="p-0">
             <Table responsive hover className="mb-0 align-middle">
-              <thead className="bg-light text-uppercase" style={{ fontSize: '0.78rem', letterSpacing: '0.05em' }}>
+              <thead className="bg-light">
                 <tr>
-                  <th style={{ width: '130px' }} className="ps-4 py-3 border-0">
-                    <div 
-                      className="d-flex align-items-center gap-2 cursor-pointer user-select-none"
-                      onClick={handleToggleSelectAll}
-                      style={{ cursor: 'pointer' }}
-                      title={allVisibleSelected ? 'Deselect all visible' : 'Select all visible'}
-                    >
-                      <Form.Check 
-                        type="checkbox"
-                        id="select-all-checkbox"
-                        checked={allVisibleSelected}
-                        ref={(el: any) => {
-                          if (el) {
-                            el.indeterminate = !allVisibleSelected && someVisibleSelected;
-                          }
-                        }}
-                        onChange={handleToggleSelectAll}
-                        onClick={(e) => e.stopPropagation()}
-                        aria-label="Select all patients"
-                        style={{ cursor: 'pointer', transform: 'scale(1.1)' }}
-                      />
-                      <span className="text-dark fw-bold small text-nowrap" style={{ fontSize: '0.78rem' }}>
-                        SELECT ALL
-                      </span>
-                    </div>
+                  <th style={{ width: '48px' }} className="ps-4 pe-2 py-3 border-0">
+                    <Form.Check
+                      type="checkbox"
+                      checked={isAllSelected}
+                      onChange={handleToggleSelectAll}
+                      aria-label="Select all patients"
+                    />
                   </th>
                   <th className="py-3 border-0 text-muted fw-semibold">Patient ID</th>
                   <th className="py-3 border-0 text-muted fw-semibold">Full Name</th>
-                  <th className="py-3 border-0 text-muted fw-semibold">Age / Gender</th>
+                  <th className="py-3 border-0 text-muted fw-semibold">Age/Gender</th>
                   <th className="py-3 border-0 text-muted fw-semibold">Contact Info</th>
                   <th className="py-3 border-0 text-muted fw-semibold">Registered On</th>
                   <th className="px-4 py-3 border-0 text-end text-muted fw-semibold">Actions</th>
@@ -384,85 +270,72 @@ export default function PatientManagement() {
                   </tr>
                 ) : filteredPatients.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="text-center py-5 text-muted">
-                      No patients found matching your search.
-                    </td>
+                    <td colSpan={7} className="text-center py-5 text-muted">No patients found.</td>
                   </tr>
                 ) : (
                   filteredPatients.map((patient) => {
                     const isSelected = selectedPatientIds.includes(patient.patient_id);
-                    const avatarStyle = getAvatarColor(patient.full_name);
-                    const initial = patient.full_name ? patient.full_name.charAt(0).toUpperCase() : 'P';
-                    const hasContact = Boolean(patient.email || patient.phone);
+                    const initials = patient.full_name
+                      ? patient.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+                      : 'PT';
+                    const shortId = patient.patient_id.length > 10 ? `#${patient.patient_id.slice(0, 8)}` : patient.patient_id;
 
                     return (
                       <tr 
                         key={patient.patient_id}
-                        className={isSelected ? 'bg-primary bg-opacity-10' : ''}
-                        style={{ 
-                          cursor: 'pointer', 
-                          borderLeft: isSelected ? '4px solid #0D6EFD' : '4px solid transparent',
-                          transition: 'all 0.15s ease-in-out'
-                        }}
-                        onClick={() => handleToggleSelectOne(patient.patient_id)}
+                        className={isSelected ? 'table-active' : ''}
+                        style={{ cursor: 'pointer' }}
+                        onClick={(e) => handleToggleSelectPatient(patient.patient_id, e)}
                       >
-                        {/* Checkbox Column */}
-                        <td className="ps-4" onClick={(e) => e.stopPropagation()}>
-                          <div className="d-flex align-items-center">
-                            <Form.Check 
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={(e) => handleToggleSelectOne(patient.patient_id, e)}
-                              aria-label={`Select ${patient.full_name}`}
-                              style={{ cursor: 'pointer', transform: 'scale(1.1)' }}
-                            />
-                          </div>
+                        <td className="ps-4 pe-2" onClick={(e) => e.stopPropagation()}>
+                          <Form.Check
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => handleToggleSelectPatient(patient.patient_id, e as any)}
+                            aria-label={`Select patient ${patient.full_name}`}
+                          />
                         </td>
-
-                        {/* Patient ID Column */}
                         <td>
                           <Badge 
                             bg="light" 
                             text="dark" 
-                            className="border font-monospace py-1.5 px-2.5 shadow-sm fw-semibold"
-                            title={`Full ID: ${patient.patient_id}`}
-                            style={{ fontSize: '0.8rem', letterSpacing: '0.03em' }}
+                            className="border shadow-sm font-monospace py-1.5 px-2"
+                            title={patient.patient_id}
                           >
-                            {patient.patient_id.length > 10 ? `#${patient.patient_id.slice(0, 8)}` : patient.patient_id}
+                            {shortId}
                           </Badge>
                         </td>
-
-                        {/* Full Name & Avatar Column */}
                         <td>
                           <div className="d-flex align-items-center gap-2.5">
                             <div 
-                              className="rounded-circle d-flex align-items-center justify-content-center fw-bold shadow-sm flex-shrink-0"
+                              className="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold shadow-sm flex-shrink-0"
                               style={{ 
-                                width: '34px', 
-                                height: '34px', 
-                                backgroundColor: avatarStyle.bg, 
-                                color: avatarStyle.text,
-                                fontSize: '0.88rem' 
+                                width: '36px', 
+                                height: '36px', 
+                                backgroundColor: patient.gender?.toLowerCase() === 'female' ? '#d63384' : '#0d6efd',
+                                fontSize: '0.85rem'
                               }}
                             >
-                              {initial}
+                              {initials}
                             </div>
                             <div>
                               <div className="fw-bold text-dark">{patient.full_name}</div>
-                              <div className="text-muted small d-md-none">{patient.gender}, {patient.age} yrs</div>
+                              <small className="text-muted font-monospace" style={{ fontSize: '0.75rem' }}>{shortId}</small>
                             </div>
                           </div>
                         </td>
-
-                        {/* Age / Gender Column */}
                         <td>
-                          <div className="fw-semibold text-dark">{patient.age} years</div>
-                          <div className="text-muted small" style={{ fontSize: '0.78rem' }}>{patient.gender}</div>
+                          <div>{patient.age} years</div>
+                          <Badge 
+                            bg={patient.gender?.toLowerCase() === 'female' ? 'danger' : 'primary'}
+                            className="px-2 py-0.5 fw-normal"
+                            style={patient.gender?.toLowerCase() === 'female' ? { backgroundColor: '#d63384' } : {}}
+                          >
+                            {patient.gender}
+                          </Badge>
                         </td>
-
-                        {/* Contact Info Column */}
                         <td>
-                          {hasContact ? (
+                          {(patient.email || patient.phone) ? (
                             <div>
                               {patient.email && (
                                 <div className="text-primary small fw-semibold d-flex align-items-center gap-1.5 text-truncate" style={{ maxWidth: '200px' }}>
@@ -483,23 +356,19 @@ export default function PatientManagement() {
                             </span>
                           )}
                         </td>
-
-                        {/* Registered Date Column */}
                         <td>
                           <div className="text-muted small d-flex align-items-center gap-1.5">
                             <FaCalendarAlt className="opacity-50" style={{ fontSize: '0.75rem' }} />
                             <span>{new Date(patient.created_at).toLocaleDateString()}</span>
                           </div>
                         </td>
-
-                        {/* Actions Column */}
                         <td className="px-4 text-end" onClick={(e) => e.stopPropagation()}>
                           <div className="d-inline-flex align-items-center gap-1.5">
                             <Link
                               to={`/patients/${patient.patient_id}/history`}
                               className="btn btn-sm shadow-sm d-flex align-items-center gap-1 px-2.5 py-1 fw-semibold text-info"
                               style={{ backgroundColor: '#F0FDFA', border: '1px solid #CCFBF1' }}
-                              title="View Patient Medical & Scan History"
+                              title="View Patient Medical History"
                             >
                               <FaHistory /> History
                             </Link>

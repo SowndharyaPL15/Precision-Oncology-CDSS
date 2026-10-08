@@ -403,6 +403,18 @@ async def update_patient(
         raise HTTPException(status_code=404, detail="Patient not found.")
     return patient
 
+@router.delete("/patients/bulk")
+async def delete_patients_bulk(
+    payload: dict,
+    db: AsyncSession = Depends(get_db)
+):
+    patient_ids = payload.get("patient_ids", [])
+    if not patient_ids or not isinstance(patient_ids, list):
+        raise HTTPException(status_code=400, detail="Invalid or empty patient_ids list provided.")
+    repo = PatientRepository(db)
+    deleted_count = await repo.delete_patients_batch(patient_ids)
+    return {"status": "success", "message": f"{deleted_count} patient(s) deleted successfully.", "count": deleted_count}
+
 @router.delete("/patients/{patient_id}")
 async def delete_patient(
     patient_id: str,
@@ -413,22 +425,6 @@ async def delete_patient(
     if not success:
         raise HTTPException(status_code=404, detail="Patient not found.")
     return {"status": "success", "message": f"Patient {patient_id} deleted successfully."}
-
-@router.post("/patients/batch-delete")
-async def batch_delete_patients(
-    payload: dict,
-    db: AsyncSession = Depends(get_db)
-):
-    patient_ids = payload.get("patient_ids", [])
-    if not patient_ids:
-        raise HTTPException(status_code=400, detail="No patient IDs provided for deletion.")
-    repo = PatientRepository(db)
-    count = await repo.delete_patients_batch(patient_ids)
-    return {
-        "status": "success",
-        "message": f"Successfully deleted {count} patient(s).",
-        "deleted_count": count
-    }
 
 @router.get("/patients/{patient_id}/predictions", response_model=List[PredictionDBResponse])
 async def get_patient_predictions(
