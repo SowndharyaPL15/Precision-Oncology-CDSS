@@ -1199,12 +1199,16 @@ export default function LungPrediction() {
           <div id="report-pdf-content" style={{ padding: '30px', fontFamily: 'Arial, sans-serif', color: '#333' }}>
             <div style={{ borderBottom: '2px solid #0d6efd', paddingBottom: '15px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <h2 style={{ margin: 0, color: '#0d6efd', fontWeight: 'bold' }}>PRECISION ONCOLOGY CLINICAL REPORT</h2>
-                <p style={{ margin: '5px 0 0 0', fontSize: '12px', color: '#666' }}>AI-Powered Diagnostic Decision Support System</p>
+                <div style={{ display: 'inline-block', backgroundColor: '#0d6efd', color: '#ffffff', padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', letterSpacing: '0.5px', marginBottom: '4px' }}>
+                  TARGET ORGAN: LUNG (PULMONARY HISTOPATHOLOGY)
+                </div>
+                <h2 style={{ margin: 0, color: '#0d6efd', fontWeight: 'bold' }}>PRECISION ONCOLOGY CLINICAL REPORT — LUNG CANCER</h2>
+                <p style={{ margin: '5px 0 0 0', fontSize: '12px', color: '#666' }}>AI-Powered Diagnostic Decision Support System | Lung Histopathology Screening</p>
               </div>
               <div style={{ textAlign: 'right' }}>
                 <h4 style={{ margin: 0, fontWeight: 'bold' }}>METROPOLITAN ONCOLOGY</h4>
-                <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: '#666' }}>ID: {result.reportId}</p>
+                <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: '#666' }}>Report ID: {result.reportId}</p>
+                <div style={{ marginTop: '3px', fontSize: '11px', fontWeight: 'bold', color: '#0d6efd' }}>PROTOCOL: LUNG CANCER AI</div>
               </div>
             </div>
 

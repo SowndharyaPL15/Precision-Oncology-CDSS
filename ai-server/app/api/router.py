@@ -460,3 +460,27 @@ async def get_all_reports(
     repo = ReportRepository(db)
     reports = await repo.get_all_reports()
     return reports
+
+@router.delete("/reports/bulk")
+async def delete_reports_bulk(
+    payload: dict,
+    db: AsyncSession = Depends(get_db)
+):
+    report_ids = payload.get("report_ids", [])
+    if not report_ids or not isinstance(report_ids, list):
+        raise HTTPException(status_code=400, detail="Invalid or empty report_ids list provided.")
+    repo = ReportRepository(db)
+    deleted_count = await repo.delete_reports_batch(report_ids)
+    return {"status": "success", "message": f"{deleted_count} report(s) deleted successfully.", "count": deleted_count}
+
+@router.delete("/reports/{report_id}")
+async def delete_report(
+    report_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    repo = ReportRepository(db)
+    success = await repo.delete_report(report_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Report not found.")
+    return {"status": "success", "message": f"Report {report_id} deleted successfully."}
+

@@ -4,7 +4,7 @@ import { Container, Row, Col, Card, Button, ProgressBar, Badge, Tab, Tabs } from
 import { motion } from 'framer-motion';
 import { 
   FaArrowLeft, FaFilePdf, FaExclamationTriangle, FaStethoscope, FaInfoCircle, 
-  FaImage, FaThermometerHalf, FaSearchPlus, FaUndo
+  FaImage, FaThermometerHalf, FaSearchPlus, FaUndo, FaLungs, FaRibbon
 } from 'react-icons/fa';
 // @ts-ignore
 import html2pdf from 'html2pdf.js';
@@ -80,6 +80,16 @@ export default function PredictionResult() {
   
   const nestedReport = report.report_json || report;
   const { prediction, gradcam, recommendation, patient_info, summary, diagnostic_summary } = nestedReport;
+
+  const organ = (() => {
+    if (nestedReport?.organ) return nestedReport.organ.toLowerCase() === 'breast' ? 'Breast' : 'Lung';
+    if (nestedReport?.dataset) return nestedReport.dataset.toLowerCase() === 'breast' ? 'Breast' : 'Lung';
+    if (patient_info?.cancer_type) return patient_info.cancer_type.toLowerCase().includes('breast') ? 'Breast' : 'Lung';
+    const finding = (prediction?.predicted_class || '').toLowerCase();
+    if (finding.startsWith('lung') || finding.includes('scc') || finding.includes('aca')) return 'Lung';
+    if (finding.includes('breast') || finding === 'benign' || finding === 'malignant') return 'Breast';
+    return 'Lung';
+  })();
   
   const isMalignant = prediction?.predicted_class?.toLowerCase().includes('malignant') || prediction?.predicted_class === 'lung_aca' || prediction?.predicted_class === 'lung_scc';
   const displayClass = prediction?.predicted_class === 'lung_aca' 
@@ -87,8 +97,8 @@ export default function PredictionResult() {
     : prediction?.predicted_class === 'lung_scc' 
       ? 'Squamous Cell Carcinoma (Malignant)' 
       : prediction?.predicted_class === 'malignant' 
-        ? 'Malignant (IDC)' 
-        : 'Benign';
+        ? (organ === 'Breast' ? 'Invasive Carcinoma (Malignant)' : 'Malignant Carcinoma') 
+        : (organ === 'Breast' ? 'Benign Breast Tissue' : 'Benign / Normal');
 
   const confidenceScore = (prediction?.confidence || 0) * (prediction?.confidence <= 1 ? 100 : 1);
   
@@ -103,7 +113,7 @@ export default function PredictionResult() {
     if (element) {
       const opt = {
         margin:       0.3,
-        filename:     `CDSS_Report_${reportId}.pdf`,
+        filename:     `CDSS_Report_${organ}_${reportId}.pdf`,
         image:        { type: 'jpeg' as const, quality: 0.98 },
         html2canvas:  { scale: 2, useCORS: true },
         jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' as const }
@@ -124,21 +134,40 @@ export default function PredictionResult() {
         <Button variant="outline-secondary" onClick={() => navigate(-1)} className="d-flex align-items-center gap-2">
           <FaArrowLeft /> Back
         </Button>
-        <Button variant="danger" onClick={handleDownload} className="d-flex align-items-center gap-2 fw-bold shadow-sm" style={{ backgroundColor: '#d63384', borderColor: '#d63384' }}>
-          <FaFilePdf /> Download PDF Report
+        <Button 
+          variant={organ === 'Lung' ? 'primary' : 'danger'} 
+          onClick={handleDownload} 
+          className="d-flex align-items-center gap-2 fw-bold shadow-sm" 
+          style={organ === 'Breast' ? { backgroundColor: '#d63384', borderColor: '#d63384' } : {}}
+        >
+          <FaFilePdf /> Download {organ} PDF Report
         </Button>
       </div>
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
         <Card id="report-content" className="shadow-sm border-0 rounded-4 overflow-hidden mb-5">
-          <div className="bg-dark text-white p-4 d-flex justify-content-between align-items-center">
+          <div className="bg-dark text-white p-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div>
-              <h3 className="fw-bold mb-1 d-flex align-items-center gap-2"><FaStethoscope /> Clinical AI Analysis Report</h3>
-              <div className="text-white-50 small">Report ID: {reportId} | Generated: {new Date(generatedAt).toLocaleString()}</div>
+              <div className="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                <h3 className="fw-bold mb-0 d-flex align-items-center gap-2">
+                  <FaStethoscope className="text-info" /> Clinical AI Analysis Report
+                </h3>
+                <Badge 
+                  bg={organ === 'Lung' ? 'primary' : 'danger'} 
+                  style={organ === 'Breast' ? { backgroundColor: '#d63384' } : {}} 
+                  className="fs-6 px-3 py-1 fw-bold shadow-sm d-inline-flex align-items-center gap-1"
+                >
+                  {organ === 'Lung' ? <><FaLungs className="me-1" /> Lung Cancer Protocol</> : <><FaRibbon className="me-1" /> Breast Cancer Protocol</>}
+                </Badge>
+              </div>
+              <div className="text-white-50 small">
+                Target Organ / Study: <strong className="text-white">{organ} Histopathology Analysis</strong> | Report ID: {reportId} | Generated: {new Date(generatedAt).toLocaleString()}
+              </div>
             </div>
             <div className="text-end d-none d-md-block">
               <h5 className="mb-0 fw-bold">Precision Oncology CDSS</h5>
-              <div className="text-white-50 small">Department of Pathology</div>
+              <div className="text-white-50 small">Department of Pathology & Oncology</div>
+              <Badge bg="light" text="dark" className="mt-1 font-monospace">{organ.toUpperCase()} CANCER HISTOPATHOLOGY</Badge>
             </div>
           </div>
 

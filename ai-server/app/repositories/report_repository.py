@@ -71,3 +71,22 @@ class ReportRepository:
                 
                 r.report_json = r_json
         return reports
+
+    async def delete_report(self, report_id: str) -> bool:
+        result = await self.session.execute(
+            select(Report).where(Report.report_id == report_id)
+        )
+        report = result.scalar_one_or_none()
+        if not report:
+            return False
+        await self.session.delete(report)
+        await self.session.commit()
+        return True
+
+    async def delete_reports_batch(self, report_ids: List[str]) -> int:
+        from sqlalchemy import delete
+        result = await self.session.execute(
+            delete(Report).where(Report.report_id.in_(report_ids))
+        )
+        await self.session.commit()
+        return result.rowcount
