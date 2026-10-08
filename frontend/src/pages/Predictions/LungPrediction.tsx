@@ -87,7 +87,7 @@ export default function LungPrediction() {
   const [formData, setFormData] = useState({
     patientName: '',
     age: '',
-    gender: 'Male',
+    gender: 'Other',
     cancerType: 'Lung',
     smokingHistory: 'Never',
     familyHistory: 'No',
@@ -153,21 +153,7 @@ export default function LungPrediction() {
     const applyPatientData = (data: Patient[]) => {
       if (!isMounted || !data || data.length === 0) return;
       setPatients(data);
-      const firstPatient = data[0];
-      setSelectedPatientId(firstPatient.patient_id);
-      setFormData({
-        patientName: firstPatient.full_name || '',
-        age: firstPatient.age?.toString() || '55',
-        gender: firstPatient.gender || 'Male',
-        cancerType: 'Lung',
-        smokingHistory: firstPatient.smoking_history || 'Never',
-        familyHistory: firstPatient.family_history || 'No',
-        symptoms: firstPatient.symptoms || '',
-        previousDisease: firstPatient.clinical_biomarkers?.previous_disease || '',
-        previousCancerHistory: firstPatient.clinical_biomarkers?.previous_cancer_history || 'No',
-        brcaStatus: firstPatient.clinical_biomarkers?.brca_status || 'Unknown',
-        notes: firstPatient.clinical_biomarkers?.notes || ''
-      });
+      // Keep default selection on None (Manual/Default clinical information)
     };
 
     const fetchPatientsWithRetry = async (attempts = 3, delayMs = 2000) => {
@@ -201,12 +187,28 @@ export default function LungPrediction() {
   const handlePatientChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const pId = e.target.value;
     setSelectedPatientId(pId);
+    if (!pId || pId === 'none') {
+      setFormData({
+        patientName: '',
+        age: '',
+        gender: 'Other',
+        cancerType: 'Lung',
+        smokingHistory: 'Never',
+        familyHistory: 'No',
+        symptoms: '',
+        previousDisease: '',
+        previousCancerHistory: 'No',
+        brcaStatus: 'Unknown',
+        notes: ''
+      });
+      return;
+    }
     const p = patients.find(pat => pat.patient_id === pId);
     if (p) {
       setFormData({
         patientName: p.full_name || '',
-        age: p.age.toString(),
-        gender: p.gender,
+        age: p.age ? p.age.toString() : '',
+        gender: p.gender || 'Other',
         cancerType: 'Lung',
         smokingHistory: p.smoking_history || 'Never',
         familyHistory: p.family_history || 'No',
@@ -265,27 +267,26 @@ export default function LungPrediction() {
       toast.error(`Prediction blocked: ${validation.message || 'Only genuine H&E histopathology slides are permitted for diagnosis.'}`);
       return;
     }
-    if (!selectedPatientId) {
-      toast.error('Please select or register a patient first');
-      return;
-    }
     
     setLoading(true);
     runLoadingAnimation();
+
+    const resolvedPatientId = selectedPatientId || (patients.length > 0 ? patients[0].patient_id : 'P-DEMO-01');
+    const resolvedPatientName = formData.patientName.trim() || 'None';
+    const resolvedAge = formData.age ? parseInt(formData.age, 10) : 45;
 
     const data = new FormData();
     data.append('file', image);
     data.append('dataset', 'lung');
     data.append('model_name', selectedModel);
-    data.append('patient_id', selectedPatientId);
+    data.append('patient_id', resolvedPatientId);
     
-    const resolvedPatientName = formData.patientName || (patients.find(p => p.patient_id === selectedPatientId)?.full_name || 'Anonymous Patient');
     const patientClinicalInfo = {
-      patient_id: selectedPatientId,
+      patient_id: resolvedPatientId,
       patient_name: resolvedPatientName,
       full_name: resolvedPatientName,
-      age: parseInt(formData.age || '0', 10),
-      gender: formData.gender,
+      age: resolvedAge,
+      gender: formData.gender || 'Other',
       cancer_type: 'Lung',
       symptoms: formData.symptoms,
       family_history: formData.familyHistory,
@@ -599,7 +600,7 @@ export default function LungPrediction() {
                       <FaUserCheck className="me-2 text-secondary" /> Select Patient Record
                     </Form.Label>
                     <Form.Select value={selectedPatientId} onChange={handlePatientChange} className="rounded-3 py-2 border-secondary-subtle">
-                      <option value="">-- Choose Patient --</option>
+                      <option value="">-- None (Default / Manual Entry) --</option>
                       {patients.map(p => (
                         <option key={p.patient_id} value={p.patient_id}>
                           {p.full_name} (ID: {p.patient_id}, {p.gender})
@@ -614,23 +615,23 @@ export default function LungPrediction() {
                     <Col md={12}>
                       <Form.Group>
                         <Form.Label className="small fw-bold text-muted">Patient Name</Form.Label>
-                        <Form.Control type="text" name="patientName" value={formData.patientName} onChange={handleFormChange} required placeholder="e.g. John Doe" className="py-2" />
+                        <Form.Control type="text" name="patientName" value={formData.patientName} onChange={handleFormChange} placeholder="None (e.g. Anonymous)" className="py-2" />
                       </Form.Group>
                     </Col>
                     
                     <Col md={6}>
                       <Form.Group>
                         <Form.Label className="small fw-bold text-muted">Age</Form.Label>
-                        <Form.Control type="number" name="age" value={formData.age} onChange={handleFormChange} required placeholder="e.g. 55" className="py-2" />
+                        <Form.Control type="number" name="age" value={formData.age} onChange={handleFormChange} placeholder="e.g. 45" className="py-2" />
                       </Form.Group>
                     </Col>
                     <Col md={6}>
                       <Form.Group>
                         <Form.Label className="small fw-bold text-muted">Gender</Form.Label>
                         <Form.Select name="gender" value={formData.gender} onChange={handleFormChange} className="py-2">
+                          <option>Other</option>
                           <option>Male</option>
                           <option>Female</option>
-                          <option>Other</option>
                         </Form.Select>
                       </Form.Group>
                     </Col>
